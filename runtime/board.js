@@ -45,7 +45,7 @@
   actions.forEach(function (action) { actionById[action.id] = action; });
   connections.forEach(function (connection) { connectionById[connection.id] = connection; });
 
-  document.documentElement.lang = canvasMeta.language || "ko";
+  document.documentElement.lang = canvasMeta.language || "en";
   qs("#canvas-title").textContent = canvasMeta.title;
   qs("#ver-badge").textContent = canvasMeta.version;
   qs("#ver-badge").title = revision.id;
@@ -83,7 +83,7 @@
       section.style.top = y + "px";
       section.tabIndex = 0;
       section.setAttribute("role", "group");
-      section.setAttribute("aria-label", frame.title + " Frame. Enter를 누르면 실행합니다.");
+      section.setAttribute("aria-label", frame.title + " frame. Press Enter to run it.");
 
       var head = document.createElement("div");
       head.className = "step-head";
@@ -92,10 +92,10 @@
       id.type = "button";
       id.className = "step-id";
       id.textContent = "#" + frame.id;
-      id.title = "프레임 ID 복사";
+      id.title = "Copy frame ID";
       id.addEventListener("click", function (event) {
         event.stopPropagation();
-        copyText("#" + frame.id, "프레임 ID 복사됨 — #" + frame.id);
+        copyText("#" + frame.id, "Frame ID copied — #" + frame.id);
       });
       head.appendChild(id);
 
@@ -258,7 +258,7 @@
       card.className = "planning-note-card";
       card.dataset.noteId = note.id;
       card.tabIndex = 0;
-      card.setAttribute("aria-label", "기획 노트 N" + (index + 1) + ": " + (note.title || note.id));
+      card.setAttribute("aria-label", "Planning note N" + (index + 1) + ": " + (note.title || note.id));
       card.style.left = (step.offsetLeft + (order % 3) * 294) + "px";
       card.style.top = (step.offsetTop + step.offsetHeight + 66 + Math.floor(order / 3) * 190) + "px";
       var head = document.createElement("div"); head.className = "planning-note-head";
@@ -359,8 +359,8 @@
     interactButton.setAttribute("aria-pressed", String(mode === "interact"));
     var active = steps.filter(function (step) { return step.classList.contains("active"); })[0] || steps[0];
     qs("#mode-hint").textContent = mode === "board"
-      ? "보드 검토 · Frame을 선택하고 Enter를 누르면 실행합니다."
-      : "프레임 실행 · 내부 scroll, hover, click을 시험합니다. Esc로 보드에 돌아갑니다.";
+      ? "Board review · select a frame and press Enter to run it."
+      : "Run mode · try scroll, hover and click inside the frame. Press Esc to go back to the board.";
     requestAnimationFrame(function () {
       pz.animate();
       if (mode === "board") {
@@ -749,7 +749,7 @@
       badge.style.left = target.x + "px";
       badge.style.top = target.y + "px";
       badge.textContent = "N" + (index + 1);
-      badge.setAttribute("aria-label", "기획 노트 N" + (index + 1) + "로 이동");
+      badge.setAttribute("aria-label", "Go to planning note N" + (index + 1));
       badge.addEventListener("click", function (event) { event.stopPropagation(); focusPlanningNote(note.id); });
       world.appendChild(badge);
       noteBadgeById[note.id] = badge;
@@ -789,7 +789,7 @@
     if (!noteList.length) {
       var empty = document.createElement("p");
       empty.className = "inspector-empty";
-      empty.textContent = "연결된 기획 Note가 없습니다.";
+      empty.textContent = "No planning notes linked to this action.";
       root.appendChild(empty);
     }
     noteList.forEach(function (note) {
@@ -836,8 +836,8 @@
       setMode("board");
       activate(action.outcome.frameId, true);
       stepFor(action.outcome.frameId).classList.add("action-destination");
-      toast("결과 Frame을 강조했습니다. Enter 또는 프레임 실행으로 계속 탐색하세요.");
-    } else toast((action.label || action.id) + " 동작 확인됨");
+      toast("Outcome frame highlighted. Press Enter or switch to Run to keep exploring.");
+    } else toast((action.label || action.id) + " triggered");
   }
 
   actions.forEach(function (action) {
@@ -901,7 +901,7 @@
     if (deletedId) deleted.add(deletedId);
     if (reviewCycle.status === "active" && localStorage.getItem(completedKey) === "1") {
       localStorage.removeItem(completedKey);
-      toast("새 댓글로 현재 review를 다시 열었습니다.");
+      toast("New comment reopened the current review.");
     }
     persistDraft(list, Array.from(deleted), null, feedbackRevision);
     renderPins();
@@ -992,7 +992,7 @@
     region.style.top = anchor.y + "%";
     region.style.width = anchor.width + "%";
     region.style.height = anchor.height + "%";
-    region.setAttribute("aria-label", "영역 댓글 " + label + ": " + comment.text);
+    region.setAttribute("aria-label", "Region comment " + label + ": " + comment.text);
     setCommentMarkerContent(region, label);
     region.onclick = function (event) { event.stopPropagation(); onClick(region); };
     qs(".device", step).appendChild(region);
@@ -1034,7 +1034,7 @@
     count.textContent = visible.length ? String(visible.length) : "";
     var resolvedCount = list.filter(function (comment) { return comment.status === "resolved"; }).length;
     var unanchoredCount = list.filter(function (comment) { return comment.status !== "resolved" && comment.target?.type === "canvas"; }).length;
-    count.title = "리뷰할 댓글 " + visible.length + "개 · resolved " + resolvedCount + "개 숨김" + (unanchoredCount ? " · 위치 없는 댓글 " + unanchoredCount + "개 숨김" : "");
+    count.title = visible.length + " comment(s) to review · " + resolvedCount + " resolved hidden" + (unanchoredCount ? " · " + unanchoredCount + " unanchored hidden" : "");
   }
 
   qs("#notes-btn").onclick = function () {
@@ -1065,7 +1065,7 @@
     this.setAttribute("aria-pressed", String(on));
     closePopover();
     renderPins();
-    if (on) toast("클릭하면 point 댓글 · Frame 영역을 드래그하면 region 댓글");
+    if (on) toast("Click for a point comment · drag inside a frame for a region comment");
   };
 
   var popover = qs("#popover");
@@ -1081,7 +1081,7 @@
   function newMessageId() { return "message-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7); }
 
   function openNewPopover(target, clientX, clientY) {
-    popover.innerHTML = '<textarea aria-label="피드백" placeholder="피드백을 입력하세요"></textarea><label class="rule-proposal-toggle"><input class="rule-proposal-input" type="checkbox"> 여러 Frame/Canvas에 적용할 공통 규칙 후보</label><div class="pop-row"><button class="primary" type="button">댓글 남기기</button><button class="pop-cancel" type="button">취소</button></div>';
+    popover.innerHTML = '<textarea aria-label="Feedback" placeholder="Write your feedback"></textarea><label class="rule-proposal-toggle"><input class="rule-proposal-input" type="checkbox"> Common rule candidate for multiple frames/canvases</label><div class="pop-row"><button class="primary" type="button">Add comment</button><button class="pop-cancel" type="button">Cancel</button></div>';
     placePopover(clientX, clientY);
     var textarea = qs("textarea", popover);
     textarea.focus();
@@ -1093,11 +1093,11 @@
       if (qs(".rule-proposal-input", popover).checked) {
         comment.ruleProposal = {
           status: "proposed",
-          title: "댓글에서 발견한 공통 규칙",
+          title: "Common rule found in a comment",
           priority: "should",
           category: "general",
           statement: comment.text,
-          rationale: "사용자가 이 피드백을 여러 Frame 또는 Canvas에 적용할 후보로 표시했습니다.",
+          rationale: "The user marked this feedback as a candidate to apply across multiple frames or canvases.",
           appliesTo: [target.type],
           verification: { type: "agent-checklist", checks: [comment.text] }
         };
@@ -1110,7 +1110,7 @@
   }
 
   function openEditPopover(pin, comment, index) {
-    popover.innerHTML = '<div class="comment-state-row"><strong class="comment-state-label"></strong><span class="comment-revision"></span></div><textarea aria-label="피드백"></textarea><label class="rule-proposal-toggle"><input class="rule-proposal-input" type="checkbox"> 여러 Frame/Canvas에 적용할 공통 규칙 후보</label><div class="rule-proposal-state" hidden></div><div class="comment-thread"></div><div class="comment-resolution" hidden></div><div class="comment-reply"><textarea aria-label="스레드 답변" placeholder="Agent 질문에 답하거나 추가 의견을 남기세요"></textarea><button class="pop-reply" type="button">답변 추가</button></div><div class="pop-row"><button class="primary" type="button">저장</button><button class="pop-resolve" type="button">' + (comment.status === "resolved" ? "다시 열기" : "사용자 해결") + '</button><button class="danger" type="button">삭제</button></div>';
+    popover.innerHTML = '<div class="comment-state-row"><strong class="comment-state-label"></strong><span class="comment-revision"></span></div><textarea aria-label="Feedback"></textarea><label class="rule-proposal-toggle"><input class="rule-proposal-input" type="checkbox"> Common rule candidate for multiple frames/canvases</label><div class="rule-proposal-state" hidden></div><div class="comment-thread"></div><div class="comment-resolution" hidden></div><div class="comment-reply"><textarea aria-label="Thread reply" placeholder="Answer the agent or add another note"></textarea><button class="pop-reply" type="button">Add reply</button></div><div class="pop-row"><button class="primary" type="button">Save</button><button class="pop-resolve" type="button">' + (comment.status === "resolved" ? "Reopen" : "Mark resolved") + '</button><button class="danger" type="button">Delete</button></div>';
     var rect = pin.getBoundingClientRect();
     placePopover(rect.right, rect.bottom);
     var textarea = qs("textarea", popover);
@@ -1121,13 +1121,13 @@
       var proposalState = qs(".rule-proposal-state", popover);
       proposalState.hidden = false;
       proposalState.textContent = comment.ruleProposal.status === "approved"
-        ? "공통 규칙 승인됨 · 피드백 저장 후 Agent 반영 대기"
-        : comment.ruleProposal.status === "rejected" ? "공통 규칙 후보에서 제외됨" : "공통 규칙 승인 대기";
+        ? "Common rule approved · waiting for the agent after you save feedback"
+        : comment.ruleProposal.status === "rejected" ? "Dropped as a common rule candidate" : "Common rule pending approval";
     }
-    var labels = { open: "미해결", discussion: "논의 필요", resolved: "해결됨" };
+    var labels = { open: "Open", discussion: "Needs discussion", resolved: "Resolved" };
     qs(".comment-state-label", popover).textContent = labels[comment.status] || comment.status;
     qs(".comment-state-label", popover).dataset.status = comment.status;
-    qs(".comment-revision", popover).textContent = comment.reviewState === "outdated" ? "대상 변경됨" : comment.reviewState === "unbound" ? "revision 미연결" : "현재 revision";
+    qs(".comment-revision", popover).textContent = comment.reviewState === "outdated" ? "Target changed" : comment.reviewState === "unbound" ? "Not bound to a revision" : "Current revision";
     var thread = qs(".comment-thread", popover);
     (comment.thread || []).forEach(function (message) {
       var item = document.createElement("article");
@@ -1140,7 +1140,7 @@
     if (comment.resolution) {
       var resolutionBox = qs(".comment-resolution", popover);
       resolutionBox.hidden = false;
-      var title = document.createElement("strong"); title.textContent = "변경 요약";
+      var title = document.createElement("strong"); title.textContent = "Change summary";
       var summary = document.createElement("p"); summary.textContent = comment.resolution.summary;
       resolutionBox.appendChild(title); resolutionBox.appendChild(summary);
       (comment.resolution.changes || []).forEach(function (change) {
@@ -1158,11 +1158,11 @@
         item.ruleProposal = {
           ...(item.ruleProposal || {}),
           status: keepApproval ? "approved" : "proposed",
-          title: item.ruleProposal?.title || "댓글에서 발견한 공통 규칙",
+          title: item.ruleProposal?.title || "Common rule found in a comment",
           priority: item.ruleProposal?.priority || "should",
           category: item.ruleProposal?.category || "general",
           statement: item.text,
-          rationale: item.ruleProposal?.rationale || "이 피드백이 여러 Frame 또는 Canvas에 반복 적용될 수 있습니다.",
+          rationale: item.ruleProposal?.rationale || "This feedback may apply repeatedly across multiple frames or canvases.",
           appliesTo: item.ruleProposal?.appliesTo || [item.target.type],
           verification: item.ruleProposal?.verification || { type: "agent-checklist", checks: [item.text] }
         };
@@ -1186,7 +1186,7 @@
       else {
         item.status = "resolved";
         item.targetRevision = revision.targetHashes[item.target.id] || item.targetRevision;
-        item.resolution = { summary: "사용자가 Canvas에서 직접 해결 처리했습니다.", changes: [], resolvedAt: now, resolvedBy: { type: "user", label: "Local reviewer" } };
+        item.resolution = { summary: "Resolved directly by the user on the canvas.", changes: [], resolvedAt: now, resolvedBy: { type: "user", label: "Local reviewer" } };
       }
       item.updatedAt = now; saveComments(list); closePopover();
     };
@@ -1194,7 +1194,7 @@
   }
 
   function openNotePopover(pin, note) {
-    popover.innerHTML = '<span class="note-kind"></span><h3 class="pop-note-title"></h3><div class="pop-note-body"></div><div class="pop-row"><button class="pop-cancel" type="button">닫기</button></div>';
+    popover.innerHTML = '<span class="note-kind"></span><h3 class="pop-note-title"></h3><div class="pop-note-body"></div><div class="pop-row"><button class="pop-cancel" type="button">Close</button></div>';
     qs(".note-kind", popover).textContent = note.kind || "note";
     qs(".pop-note-title", popover).textContent = note.title || note.id;
     qs(".pop-note-body", popover).textContent = note.text;
@@ -1253,7 +1253,7 @@
     closeFileMenu();
     var list = loadComments();
     var lines = ["## Canvas feedback — " + canvasMeta.title + " (" + canvasMeta.version + ")", "Review: " + reviewCycle.id + " · feedback revision " + feedbackRevision];
-    if (!list.length) lines.push("(댓글 없음)");
+    if (!list.length) lines.push("(no comments)");
     list.forEach(function (comment, index) {
       var target = comment.target;
       var title = target.type === "frame" && frameById[target.id] ? frameById[target.id].title : target.type + " #" + target.id;
@@ -1262,37 +1262,37 @@
         : target.type === "frame" && (target.anchor?.kind === "point" || target.x != null)
           ? " @ point " + (target.anchor?.x ?? target.x) + "%," + (target.anchor?.y ?? target.y) + "%"
           : "";
-      var statusLabel = comment.status === "resolved" ? "해결됨" : comment.status === "discussion" ? "논의 필요" : "미해결";
-      lines.push((index + 1) + ". [" + title + anchor + "] (" + statusLabel + ")" + (comment.reviewState === "outdated" ? " (대상 변경됨)" : "") + " " + comment.text);
+      var statusLabel = comment.status === "resolved" ? "resolved" : comment.status === "discussion" ? "needs discussion" : "open";
+      lines.push((index + 1) + ". [" + title + anchor + "] (" + statusLabel + ")" + (comment.reviewState === "outdated" ? " (target changed)" : "") + " " + comment.text);
       (comment.thread || []).forEach(function (message) { lines.push("   - " + message.author.label + ": " + message.text); });
-      if (comment.resolution) lines.push("   - 변경 요약: " + comment.resolution.summary);
-      if (comment.ruleProposal) lines.push("   - 공통 규칙 후보 (" + comment.ruleProposal.status + "): " + comment.ruleProposal.statement);
+      if (comment.resolution) lines.push("   - change summary: " + comment.resolution.summary);
+      if (comment.ruleProposal) lines.push("   - common rule candidate (" + comment.ruleProposal.status + "): " + comment.ruleProposal.statement);
     });
     var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: feedbackMeta.archive || [] }, list);
-    openModal("피드백 저장", function (body) {
-      body.innerHTML = '<textarea readonly aria-label="Markdown 피드백"></textarea><div class="pop-row"><button id="download-feedback" type="button">feedback.json 저장</button><button id="copy-feedback-json" type="button">JSON 복사</button></div><div class="modal-hint">저장 후 Agent가 이 파일을 읽어 status, thread, resolution과 feedbackRevision을 갱신합니다.</div>';
+    openModal("Save feedback", function (body) {
+      body.innerHTML = '<textarea readonly aria-label="Markdown feedback"></textarea><div class="pop-row"><button id="download-feedback" type="button">Download feedback.json</button><button id="copy-feedback-json" type="button">Copy JSON</button></div><div class="modal-hint">After saving, the agent reads this file and updates status, thread, resolution and feedbackRevision.</div>';
       qs("textarea", body).value = lines.join("\n");
       qs("#download-feedback").onclick = function () {
-        downloadJson(portable, "feedback.json"); markSubmitted(list); toast("피드백 저장됨 · Agent 결과를 기다립니다.");
+        downloadJson(portable, "feedback.json"); markSubmitted(list); toast("Feedback saved · waiting for the agent.");
       };
-      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(portable, null, 2), "feedback JSON 복사됨"); markSubmitted(list); };
+      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(portable, null, 2), "Feedback JSON copied"); markSubmitted(list); };
     });
-    copyText(lines.join("\n"), "Markdown 피드백 복사됨");
+    copyText(lines.join("\n"), "Markdown feedback copied");
   };
 
   qs("#clear-all-comments").onclick = function () {
     closeFileMenu();
     if (reviewCycle.status === "active") localStorage.removeItem(completedKey);
     var list = loadComments();
-    openModal("전체 댓글 클리어", function (body) {
-      body.innerHTML = '<p class="modal-copy">현재 Canvas의 댓글 ' + list.length + '개를 모두 화면에서 지웁니다. 이후 저장하기로 빈 feedback 파일을 만들 수 있습니다.</p><div class="pop-row"><button id="confirm-clear-comments" type="button">전체 댓글 클리어</button></div>';
+    openModal("Clear all comments", function (body) {
+      body.innerHTML = '<p class="modal-copy">Removes all ' + list.length + ' comment(s) on this canvas from the view. You can then use Save feedback to write an empty feedback file.</p><div class="pop-row"><button id="confirm-clear-comments" type="button">Clear all comments</button></div>';
       qs("#confirm-clear-comments").onclick = function () {
         var previous = draftEnvelope();
         var deleted = new Set(previous.deletedIds || []);
         list.forEach(function (comment) { deleted.add(comment.id); });
         localStorage.removeItem(completedKey);
         persistDraft([], Array.from(deleted), null, feedbackRevision);
-        closeModal(); renderPins(); toast("전체 댓글을 클리어했습니다. 저장하기로 반영하세요.");
+        closeModal(); renderPins(); toast("All comments cleared. Use Save feedback to apply it.");
       };
     });
   };
@@ -1339,7 +1339,7 @@
   if (steps[0]) activate(steps[0].dataset.frameId);
   renderPins();
   pz.fit();
-  setTimeout(function () { toast("보드: pan/zoom · Frame 실행: 내부 scroll/hover/click · Esc: 보드 복귀"); }, 400);
+  setTimeout(function () { toast("Board: pan/zoom · Run: scroll/hover/click inside a frame · Esc: back to board"); }, 400);
 
   window.__canvas = {
     data: data,

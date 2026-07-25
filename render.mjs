@@ -377,7 +377,7 @@ async function main() {
   const safeJson = JSON.stringify(snapshot).replaceAll("<", "\\u003c");
   const html = template
     .replace("{{TITLE}}", escapeHtml(data.canvas.title))
-    .replace("{{LANG}}", escapeHtml(data.canvas.language || "ko"))
+    .replace("{{LANG}}", escapeHtml(data.canvas.language || "en"))
     .replace("{{RUNTIME_CSS}}", runtimeCss)
     .replace("{{CANVAS_CSS}}", canvasStyles)
     .replace("{{CANVAS_DATA}}", safeJson)

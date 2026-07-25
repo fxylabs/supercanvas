@@ -5,7 +5,7 @@
     "id": "design-library-replace",
     "title": "Replace with UI Kit title",
     "version": "v1",
-    "description": "Agent와 사람이 함께 읽는 Canvas-local Design Library 정의."
+    "description": "Canvas-local Design Library definitions, read by both the agent and people."
   },
   "foundations": [],
   "layouts": [],

@@ -4,7 +4,7 @@
     "id": "canvas-replace-with-unique-id",
     "title": "Replace with Canvas title",
     "version": "v1",
-    "language": "ko"
+    "language": "en"
   },
   "sources": {
     "library": "library.json",
@@ -22,8 +22,8 @@
   "frames": [
     {
       "id": "frame-replace-home",
-      "title": "첫 Frame",
-      "summary": "새 Canvas package의 첫 화면. 실제 화면 요약으로 교체한다.",
+      "title": "First frame",
+      "summary": "First screen of a new canvas package. Replace with a summary of the real screen.",
       "kind": "desktop",
       "tags": ["replace"],
       "uses": ["styles/canvas.css"],

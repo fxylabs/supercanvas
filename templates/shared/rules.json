@@ -3,157 +3,157 @@
   "rulesRevision": 2,
   "scope": "workspace",
   "title": "Canvas Common Rules",
-  "description": "Agent가 모든 Canvas 작업 전에 적용하고 검증하는 workspace 공통 규칙입니다.",
+  "description": "Workspace-wide rules the agent applies and verifies before every canvas change.",
   "rules": [
     {
       "id": "rule-frame-input-ownership",
-      "title": "Canvas와 Frame 입력 소유권을 분리한다",
+      "title": "Separate canvas and frame input ownership",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "보드와 댓글 모드에서는 Canvas가 pan/zoom을 소유하고, 프레임 실행 모드에서는 HTML Frame이 scroll, hover, click과 keyboard input을 소유한다.",
-      "rationale": "Canvas 탐색과 실제 화면 상호작용이 서로의 입력을 가로채지 않게 한다.",
+      "statement": "In board and comment mode the canvas owns pan/zoom; in run mode the HTML frame owns scroll, hover, click and keyboard input.",
+      "rationale": "Keeps canvas navigation and real screen interaction from stealing each other's input.",
       "appliesTo": ["canvas", "frame", "interaction"],
       "source": { "type": "user-instruction", "ref": "canvas-input-modes" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "댓글 모드에서 Frame 위 트랙패드 wheel이 Canvas를 이동한다.",
-          "댓글 모드에서 Frame 포인터 드래그는 영역 댓글을 만든다.",
-          "프레임 실행 모드에서 Frame 내부 scroll, hover, click이 동작한다."
+          "In comment mode, a trackpad wheel over a frame pans the canvas.",
+          "In comment mode, a pointer drag on a frame creates a region comment.",
+          "In run mode, scroll, hover and click work inside the frame."
         ]
       }
     },
     {
       "id": "rule-action-outcome-frame",
-      "title": "상태 변화는 별도 결과 Frame으로 보여준다",
+      "title": "Show state changes as a separate outcome frame",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "사용자 Action으로 화면 상태가 바뀌면 결과를 별도 Frame으로 만들고 연결과 강조로 드러낸다.",
-      "rationale": "정적인 디자인 검토에서도 원인과 결과를 추적할 수 있게 한다.",
+      "statement": "When a user action changes screen state, build the result as its own frame and surface it with a connection and a highlight.",
+      "rationale": "Lets a static design review still trace cause and effect.",
       "appliesTo": ["action", "frame", "connection"],
       "source": { "type": "user-instruction", "ref": "action-outcome-frames" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "상태를 바꾸는 Action에 outcome Frame이 있다.",
-          "Action과 결과 Frame 사이 Connection이 정의되어 있다.",
-          "Action 실행 후 결과 Frame이 강조된다."
+          "Every state-changing action has an outcome frame.",
+          "A connection is defined between the action and its outcome frame.",
+          "The outcome frame is highlighted after the action runs."
         ]
       }
     },
     {
       "id": "rule-orthogonal-action-connections",
-      "title": "연결선은 Action port에서 직교 라우팅한다",
+      "title": "Route connections orthogonally from action ports",
       "status": "active",
       "priority": "must",
       "category": "connection",
-      "statement": "연결선은 버튼 등 Action의 상하좌우 port에서 출발해 결과 Frame의 port로 이어지며 다른 Frame을 가로지르지 않는 직교 gutter route를 사용한다.",
-      "rationale": "흐름의 출발점을 분명히 하고 Canvas 중앙을 가로지르는 모호한 선을 피한다.",
+      "statement": "Connections start at a top/right/bottom/left port of an action such as a button and run to a port on the outcome frame along an orthogonal gutter route that never crosses another frame.",
+      "rationale": "Makes the origin of each flow explicit and avoids ambiguous lines cutting across the canvas.",
       "appliesTo": ["action", "connection", "frame"],
       "source": { "type": "user-instruction", "ref": "orthogonal-connections" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "Connection route.from이 실제 Action과 top/right/bottom/left port를 참조한다.",
-          "Connection이 관련 없는 Frame 내부를 가로지르지 않는다.",
-          "겹치는 역방향 연결은 별도 lane을 사용한다."
+          "Connection route.from references a real action and a top/right/bottom/left port.",
+          "No connection cuts through the inside of an unrelated frame.",
+          "Overlapping reverse connections use separate lanes."
         ]
       }
     },
     {
       "id": "rule-planning-note-cards",
-      "title": "기획 Note는 Frame 주변 카드로 연결한다",
+      "title": "Link planning notes as cards around the frame",
       "status": "active",
       "priority": "must",
       "category": "planning",
-      "statement": "기획 Note는 댓글 pin으로 축약하지 않고 기획 노트 모드에서 Frame 주변 카드로 배치하며 번호 anchor와 link로 대상 item에 연결한다.",
-      "rationale": "정책과 기획 설명을 review feedback과 분리하고 문맥을 한눈에 보게 한다.",
+      "statement": "Planning notes are never collapsed into comment pins; place them as cards around the frame in planning notes mode and link them to their target item with a numbered anchor and a link line.",
+      "rationale": "Keeps policy and planning explanations out of review feedback while showing the context at a glance.",
       "appliesTo": ["note", "frame", "action"],
       "source": { "type": "user-instruction", "ref": "planning-note-view" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "기획 노트 모드에서 Note의 title, kind, text와 ID가 카드에 보인다.",
-          "대상 item, 번호 anchor와 Note card 선택 시 함께 강조된다.",
-          "Planning Note와 Comment가 같은 lifecycle이나 marker를 사용하지 않는다."
+          "In planning notes mode the card shows the note title, kind, text and ID.",
+          "Selecting the target item, the numbered anchor or the note card highlights all of them together.",
+          "Planning notes and comments do not share a lifecycle or a marker."
         ]
       }
     },
     {
       "id": "rule-feedback-lifecycle-separation",
-      "title": "댓글 상태와 revision 상태를 분리한다",
+      "title": "Separate comment status from revision status",
       "status": "active",
       "priority": "must",
       "category": "feedback",
-      "statement": "댓글 workflow는 open, discussion, resolved로 관리하고 target revision 상태와 분리한다. 리뷰할 Agent 댓글은 표시하고 사람이 해결한 resolved 댓글은 기본적으로 숨긴다.",
-      "rationale": "노란색 논의 필요와 화면 변경으로 오래된 댓글을 혼동하지 않는다.",
+      "statement": "Manage the comment workflow as open, discussion and resolved, kept separate from target revision state. Show agent comments that need review and hide comments the user already resolved by default.",
+      "rationale": "Prevents confusing a yellow needs-discussion comment with one that went stale because the screen changed.",
       "appliesTo": ["feedback", "comment", "revision"],
       "source": { "type": "user-instruction", "ref": "feedback-lifecycle" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "open과 discussion 댓글은 pin으로 표시되고 resolved 댓글은 기본 화면과 댓글 수에서 제외된다.",
-          "outdated는 workflow 색상과 별도의 점선 revision 표식을 사용한다.",
-          "Agent가 resolved 댓글에 변경 요약과 현재 targetRevision을 기록한다."
+          "Open and discussion comments show as pins; resolved comments are excluded from the default view and the comment count.",
+          "Outdated uses a dashed revision marker distinct from the workflow colors.",
+          "The agent records a change summary and the current targetRevision on every resolved comment."
         ]
       }
     },
     {
       "id": "rule-feedback-rule-promotion",
-      "title": "일반화 가능한 피드백은 승인 후 규칙으로 승격한다",
+      "title": "Promote generalizable feedback to a rule only after approval",
       "status": "active",
       "priority": "must",
       "category": "workflow",
-      "statement": "사용자가 명시한 공통 규칙은 active로 기록하고, Agent가 댓글에서 추론한 규칙은 proposed로 제안해 사용자 승인 후에만 active로 승격한다.",
-      "rationale": "반복 피드백을 줄이면서 일회성 취향이 전체 Canvas의 영구 제약이 되는 것을 막는다.",
+      "statement": "Rules the user states explicitly are recorded as active; rules the agent infers from comments are offered as proposed and become active only after the user approves them.",
+      "rationale": "Cuts repeated feedback without letting a one-off preference become a permanent constraint on every canvas.",
       "appliesTo": ["agent-workflow", "feedback", "rule"],
       "source": { "type": "user-instruction", "ref": "common-rule-promotion" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "Agent가 일회성 수정과 여러 Canvas에 적용할 규칙 후보를 구분한다.",
-          "추론한 규칙은 사용자 승인 전까지 proposed 상태다.",
-          "승격한 규칙이 원본 comment ID provenance를 유지한다."
+          "The agent distinguishes a one-off fix from a rule candidate that applies across canvases.",
+          "Inferred rules stay proposed until the user approves them.",
+          "Promoted rules keep the provenance of the original comment ID."
         ]
       }
     },
     {
       "id": "rule-library-definition-first",
-      "title": "UI 작업은 Library 정의를 먼저 확인한다",
+      "title": "Check library definitions before UI work",
       "status": "active",
       "priority": "must",
       "category": "design-system",
-      "statement": "Agent는 UI/UX 작업 전에 기존 Foundation, Layout, Component와 Story 계약을 검색하고 적합한 정의가 없을 때만 새 stable Library target을 만든다.",
-      "rationale": "Frame마다 HTML과 스타일을 다시 만들지 않고 일관된 정의 데이터를 축적한다.",
+      "statement": "Before any UI/UX work the agent searches the existing foundation, layout, component and story contracts, and creates a new stable library target only when no suitable definition exists.",
+      "rationale": "Accumulates consistent definition data instead of rebuilding HTML and styles for every frame.",
       "appliesTo": ["library", "frame", "component"],
       "source": { "type": "user-instruction", "ref": "canvas-ui-kit" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "Frame 작업 전에 libraryIndex를 확인했다.",
-          "재사용 component는 libraryUses와 data-ui를 모두 선언한다.",
-          "정의되지 않은 prop, variant 또는 state를 임의로 만들지 않았다."
+          "libraryIndex was checked before working on the frame.",
+          "Reused components declare both libraryUses and data-ui.",
+          "No undefined prop, variant or state was invented."
         ]
       }
     },
     {
       "id": "rule-generated-output-is-not-source",
-      "title": "생성 HTML을 source로 수정하지 않는다",
+      "title": "Never edit generated HTML as source",
       "status": "active",
       "priority": "must",
       "category": "authoring",
-      "statement": "Agent는 dist/canvas.html을 수정하거나 기본 입력으로 읽지 않고 context router가 반환한 data, fragment와 style source만 편집한다.",
-      "rationale": "공통 runtime 복제와 생성 결과의 역수정을 막고 다음 render의 재현성을 유지한다.",
+      "statement": "The agent does not edit dist/canvas.html or read it as primary input; it edits only the data, fragment and style sources returned by the context router.",
+      "rationale": "Prevents duplicating the shared runtime or back-editing generated output, keeping the next render reproducible.",
       "appliesTo": ["agent-workflow", "source", "output"],
       "source": { "type": "user-instruction", "ref": "data-only-canvas-authoring" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "작업이 stable target ID와 context.mjs에서 시작했다.",
-          "변경 파일이 generated dist/canvas.html이 아니다.",
-          "update.mjs 재실행으로 같은 결과를 생성할 수 있다."
+          "The work started from a stable target ID and context.mjs.",
+          "No changed file is the generated dist/canvas.html.",
+          "Re-running update.mjs reproduces the same output."
         ]
       }
     }

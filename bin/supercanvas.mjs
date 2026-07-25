@@ -16,20 +16,20 @@ const registryFile = path.join(os.homedir(), ".supercanvas", "registry.json");
 
 const usage = `usage: supercanvas <command>
 
-  new <dir> [--title t] [--template minimal]   package 스캐폴드 + 레지스트리 등록
-  add [target] [--slug s]                      기존 package를 레지스트리에 등록
-  list                                         등록된 canvas 목록
-  remove <slug>                                레지스트리에서 제거 (package 파일은 유지)
-  view [target]                                dist/canvas.html을 브라우저로 연다
-  update [target ...] [--all [root]]           render + verify (기본: cwd에서 가장 가까운 package)
-  render [target]                              render만 실행
-  verify [target]                              검증만 실행
-  context --target <id> [target]               stable target ID를 최소 source 집합으로 해석
-  migrate [target]                             schemaVersion을 엔진 최신으로 영구 업그레이드
-  help                                         이 도움말 출력
+  new <dir> [--title t] [--template minimal]   scaffold a package and register it
+  add [target] [--slug s]                      register an existing package
+  list                                         list registered canvases
+  remove <slug>                                unregister a canvas (package files are kept)
+  view [target]                                open dist/canvas.html in the browser
+  update [target ...] [--all [root]]           render + verify (default: nearest package from cwd)
+  render [target]                              render only
+  verify [target]                              verify only
+  context --target <id> [target]               resolve a stable target ID to a minimal source set
+  migrate [target]                             permanently upgrade schemaVersion to the engine latest
+  help                                         print this help
 
-[target]은 canvas package 경로 또는 레지스트리 slug다. 생략하면 cwd에서 위로 올라가며
-canvas.json을 찾는다.
+[target] is a canvas package path or a registry slug. When omitted, walks up from cwd
+to find canvas.json.
 `;
 
 async function exists(candidate)
@@ -52,7 +52,7 @@ async function nearestPackage(startDir)
     {
         if (await exists(path.join(current, "canvas.json"))) return current;
         const parent = path.dirname(current);
-        if (parent === current) throw new Error(`cwd에서 상위로 canvas.json을 찾지 못했습니다: ${startDir}`);
+        if (parent === current) throw new Error(`No canvas.json found walking up from cwd: ${startDir}`);
         current = parent;
     }
 }
@@ -62,7 +62,7 @@ async function packageFrom(input)
     const candidate = path.resolve(input);
     if (path.basename(candidate) === "canvas.json" && await exists(candidate)) return path.dirname(candidate);
     if (await exists(path.join(candidate, "canvas.json"))) return candidate;
-    throw new Error(`Canvas package를 찾을 수 없습니다: ${candidate}`);
+    throw new Error(`Canvas package not found: ${candidate}`);
 }
 
 async function loadRegistry()
@@ -89,7 +89,7 @@ async function resolveTarget(input)
     if (fromPath) return fromPath;
     const registry = await loadRegistry();
     if (registry[input]) return packageFrom(registry[input].path);
-    throw new Error(`경로도 레지스트리 slug도 아닙니다: ${input} (등록: supercanvas add)`);
+    throw new Error(`Not a path or a registry slug: ${input} (register it with: supercanvas add)`);
 }
 
 function run(script, args)
@@ -155,7 +155,7 @@ async function register(slug, packageRoot)
     const existing = registry[slug];
     if (existing && path.resolve(existing.path) !== packageRoot)
     {
-        throw new Error(`slug가 이미 다른 경로에 등록돼 있습니다: ${slug} → ${existing.path} (--slug로 다른 이름 지정)`);
+        throw new Error(`slug is already registered to another path: ${slug} → ${existing.path} (pick another name with --slug)`);
     }
     registry[slug] = { path: packageRoot, addedAt: existing?.addedAt || new Date().toISOString() };
     await saveRegistry(registry);
@@ -171,15 +171,15 @@ async function ensureSchemaSupported(packageRoot)
     const version = (await readManifest(packageRoot)).schemaVersion;
     if (version > CANVAS_SCHEMA_VERSION)
     {
-        throw new Error(`package schemaVersion ${version}은 이 엔진(v${CANVAS_SCHEMA_VERSION})보다 새 버전입니다. 엔진을 업데이트한다: ${packageRoot}`);
+        throw new Error(`package schemaVersion ${version} is newer than this engine (v${CANVAS_SCHEMA_VERSION}). Update the engine: ${packageRoot}`);
     }
     if (!SUPPORTED_SCHEMA_VERSIONS.has(version))
     {
-        throw new Error(`지원하지 않는 schemaVersion ${version}입니다: ${packageRoot} (실행: supercanvas migrate)`);
+        throw new Error(`Unsupported schemaVersion ${version}: ${packageRoot} (run: supercanvas migrate)`);
     }
     if (version < CANVAS_SCHEMA_VERSION)
     {
-        process.stderr.write(`schemaVersion ${version} package다. supercanvas migrate로 v${CANVAS_SCHEMA_VERSION} 영구 반영을 권장한다.\n`);
+        process.stderr.write(`This package is schemaVersion ${version}. Run supercanvas migrate to upgrade it to v${CANVAS_SCHEMA_VERSION} permanently.\n`);
     }
     return packageRoot;
 }
@@ -208,9 +208,9 @@ async function cmdNew(args)
     }
     if (rest.length !== 1) throw new Error("usage: supercanvas new <dir> [--title t] [--template minimal]");
     const dir = path.resolve(rest[0]);
-    if (await exists(path.join(dir, "canvas.json"))) throw new Error(`이미 canvas package가 있습니다: ${dir}`);
+    if (await exists(path.join(dir, "canvas.json"))) throw new Error(`A canvas package already exists: ${dir}`);
     const templateRoot = path.join(engineRoot, "templates", template);
-    if (!await exists(path.join(templateRoot, "canvas.json"))) throw new Error(`template을 찾을 수 없습니다: ${template}`);
+    if (!await exists(path.join(templateRoot, "canvas.json"))) throw new Error(`Template not found: ${template}`);
     const slug = slugify(path.basename(dir));
     await cp(templateRoot, dir, { recursive: true });
     const templateId = (await readManifest(dir)).canvas.id;
@@ -219,7 +219,7 @@ async function cmdNew(args)
     manifest.canvas.title = title || slug;
     await writeFile(path.join(dir, "canvas.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     await register(slug, dir);
-    process.stdout.write(`created ${dir} (slug: ${slug})\n다음: frame source를 교체하고 supercanvas update ${slug}\n`);
+    process.stdout.write(`created ${dir} (slug: ${slug})\nNext: replace the frame sources, then run supercanvas update ${slug}\n`);
 }
 
 async function cmdAdd(args)
@@ -262,7 +262,7 @@ async function cmdList()
     const slugs = Object.keys(registry).sort();
     if (!slugs.length)
     {
-        process.stdout.write("등록된 canvas가 없습니다. supercanvas new 또는 add로 등록한다.\n");
+        process.stdout.write("No canvases registered. Register one with supercanvas new or add.\n");
         return;
     }
     for (const slug of slugs)
@@ -276,10 +276,10 @@ async function cmdRemove(args)
     const slug = args[0];
     if (!slug) throw new Error("usage: supercanvas remove <slug>");
     const registry = await loadRegistry();
-    if (!registry[slug]) throw new Error(`등록되지 않은 slug입니다: ${slug}`);
+    if (!registry[slug]) throw new Error(`Unregistered slug: ${slug}`);
     delete registry[slug];
     await saveRegistry(registry);
-    process.stdout.write(`removed ${slug} (package 파일은 그대로 둔다)\n`);
+    process.stdout.write(`removed ${slug} (package files are left in place)\n`);
 }
 
 async function cmdMigrate(args)
@@ -289,11 +289,11 @@ async function cmdMigrate(args)
     const version = manifest.schemaVersion;
     if (version > CANVAS_SCHEMA_VERSION)
     {
-        throw new Error(`package schemaVersion ${version}은 이 엔진(v${CANVAS_SCHEMA_VERSION})보다 새 버전입니다. 엔진을 업데이트한다.`);
+        throw new Error(`package schemaVersion ${version} is newer than this engine (v${CANVAS_SCHEMA_VERSION}). Update the engine.`);
     }
     if (version === CANVAS_SCHEMA_VERSION)
     {
-        process.stdout.write(`이미 최신 schemaVersion v${CANVAS_SCHEMA_VERSION}이다: ${packageRoot}\n`);
+        process.stdout.write(`Already at the latest schemaVersion v${CANVAS_SCHEMA_VERSION}: ${packageRoot}\n`);
         return;
     }
     const upgraded = migrateManifest(manifest);
@@ -320,7 +320,7 @@ async function cmdView(args)
 {
     const packageRoot = await ensureSchemaSupported(await resolveTarget(args[0]));
     const output = path.join(packageRoot, "dist/canvas.html");
-    if (!await exists(output)) throw new Error(`dist/canvas.html이 없습니다. 먼저 실행: supercanvas update ${args[0] || packageRoot}`);
+    if (!await exists(output)) throw new Error(`dist/canvas.html is missing. Run this first: supercanvas update ${args[0] || packageRoot}`);
     const opener = process.platform === "darwin" ? "open" : "xdg-open";
     spawn(opener, [output], { stdio: "ignore", detached: true }).unref();
     process.stdout.write(`opened ${output}\n`);

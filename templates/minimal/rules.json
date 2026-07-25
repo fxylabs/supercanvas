@@ -3,23 +3,23 @@
   "rulesRevision": 1,
   "scope": "workspace",
   "title": "Canvas Common Rules",
-  "description": "이 파일을 package 바깥의 ../_shared/rules.json으로 옮기면 여러 Canvas가 같은 규칙을 자동으로 사용합니다.",
+  "description": "Move this file outside the package to ../_shared/rules.json and every canvas there picks up the same rules automatically.",
   "rules": [
     {
       "id": "rule-replace-input-ownership",
-      "title": "Canvas와 Frame 입력 소유권을 분리한다",
+      "title": "Separate canvas and frame input ownership",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "보드와 댓글 모드에서는 Canvas가 pan/zoom을 소유하고 프레임 실행 모드에서는 HTML Frame이 내부 상호작용을 소유한다.",
-      "rationale": "Canvas 탐색과 화면 실행의 입력 충돌을 방지한다.",
+      "statement": "In board and comment mode the canvas owns pan/zoom; in run mode the HTML frame owns its internal interaction.",
+      "rationale": "Prevents input conflicts between canvas navigation and running the screen.",
       "appliesTo": ["canvas", "frame", "interaction"],
       "source": { "type": "user-instruction", "ref": "replace-with-source" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "댓글 모드에서 Frame 위 wheel로 Canvas가 이동한다.",
-          "프레임 실행 모드에서 Frame 내부 scroll, hover, click이 동작한다."
+          "In comment mode, a wheel over a frame pans the canvas.",
+          "In run mode, scroll, hover and click work inside the frame."
         ]
       }
     }

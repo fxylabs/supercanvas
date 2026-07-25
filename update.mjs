@@ -24,7 +24,7 @@ async function packageFrom(input) {
   const candidate = path.resolve(input);
   if (path.basename(candidate) === "canvas.json" && await exists(candidate)) return path.dirname(candidate);
   if (await exists(path.join(candidate, "canvas.json"))) return candidate;
-  throw new Error(`Canvas package를 찾을 수 없습니다: ${candidate}`);
+  throw new Error(`Canvas package not found: ${candidate}`);
 }
 
 async function packagesUnder(root) {
@@ -55,7 +55,7 @@ async function defaultPackages() {
   if (await exists(path.join(current, "canvas.json"))) return [current];
   const localPackages = await packagesUnder(path.join(current, ".data/canvas"));
   if (localPackages.length) return localPackages;
-  throw new Error("현재 폴더에 canvas.json 또는 .data/canvas/* package가 없습니다.");
+  throw new Error("No canvas.json or .data/canvas/* package in the current folder.");
 }
 
 async function resolvePackages(args) {
@@ -64,7 +64,7 @@ async function resolvePackages(args) {
     if (args.length > 2) throw new Error("Usage: update.mjs --all [canvas-packages-root]");
     const root = path.resolve(args[1] || path.join(process.cwd(), ".data/canvas"));
     const packages = await packagesUnder(root);
-    if (!packages.length) throw new Error(`Canvas package가 없습니다: ${root}`);
+    if (!packages.length) throw new Error(`No canvas packages found under: ${root}`);
     return packages;
   }
   return Promise.all(args.map(packageFrom));

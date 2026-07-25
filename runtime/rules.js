@@ -31,13 +31,13 @@
   function copyJson(value, message) {
     var text = JSON.stringify(value, null, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { announce(message); }, function () { announce("정의 데이터를 펼쳐 복사하세요."); });
-    } else announce("정의 데이터를 펼쳐 복사하세요.");
+      navigator.clipboard.writeText(text).then(function () { announce(message); }, function () { announce("Expand the definition data and copy it manually."); });
+    } else announce("Expand the definition data and copy it manually.");
   }
 
   function sourceLabel(source) {
-    if (!source) return "출처 없음";
-    var labels = { "user-instruction": "사용자 명시 규칙", feedback: "댓글 피드백", "agent-proposal": "Agent 제안", maintainer: "Maintainer" };
+    if (!source) return "No source";
+    var labels = { "user-instruction": "User instruction", feedback: "Comment feedback", "agent-proposal": "Agent proposal", maintainer: "Maintainer" };
     return (labels[source.type] || source.type) + (source.ref ? " · #" + source.ref : "");
   }
 
@@ -57,12 +57,12 @@
         commentId: comment.id,
         value: {
           id: "proposal-" + comment.id,
-          title: proposal.title || "댓글에서 발견한 공통 규칙",
+          title: proposal.title || "Common rule found in a comment",
           status: proposal.status,
           priority: proposal.priority || "should",
           category: proposal.category,
           statement: proposal.statement,
-          rationale: proposal.rationale || "이 댓글이 여러 Frame 또는 Canvas에 반복 적용될 수 있습니다.",
+          rationale: proposal.rationale || "This comment may apply repeatedly across multiple frames or canvases.",
           appliesTo: proposal.appliesTo || [comment.target.type],
           source: { type: "feedback", ref: comment.id },
           verification: proposal.verification || { type: "agent-checklist", checks: [proposal.statement] }
@@ -84,12 +84,12 @@
     comment.updatedAt = new Date().toISOString();
     window.__canvas.saveComments(comments);
     render();
-    announce(status === "approved" ? "규칙 후보를 승인했습니다. 피드백 저장 후 Agent가 공통 규칙으로 반영합니다." : "규칙 후보를 폐기했습니다.");
+    announce(status === "approved" ? "Rule candidate approved. The agent promotes it to a common rule after you save feedback." : "Rule candidate dropped.");
   }
 
   function definitionDetails(value) {
     var details = element("details", "rules-definition");
-    details.appendChild(element("summary", null, "정의 데이터 보기"));
+    details.appendChild(element("summary", null, "View definition data"));
     details.appendChild(element("pre", null, JSON.stringify(value, null, 2)));
     return details;
   }
@@ -103,16 +103,16 @@
     var head = element("header", "rule-card-head");
     var identity = element("div");
     var badges = element("div", "rule-badges");
-    badges.appendChild(element("span", "rule-status", rule.status === "active" ? "활성" : rule.status === "approved" ? "Agent 반영 대기" : rule.status === "deprecated" ? "폐기됨" : "승인 대기"));
+    badges.appendChild(element("span", "rule-status", rule.status === "active" ? "Active" : rule.status === "approved" ? "Awaiting agent" : rule.status === "deprecated" ? "Deprecated" : "Pending approval"));
     badges.appendChild(element("span", "rule-priority", rule.priority));
     badges.appendChild(element("span", "rule-category", rule.category));
     identity.appendChild(badges);
     identity.appendChild(element("h2", null, rule.title));
     identity.appendChild(element("code", null, rule.id));
     head.appendChild(identity);
-    var copy = element("button", "rule-copy", "정의 복사");
+    var copy = element("button", "rule-copy", "Copy definition");
     copy.type = "button";
-    copy.addEventListener("click", function () { copyJson(rule, rule.id + " 규칙 복사됨"); });
+    copy.addEventListener("click", function () { copyJson(rule, rule.id + " rule copied"); });
     head.appendChild(copy);
     card.appendChild(head);
     card.appendChild(element("p", "rule-statement", rule.statement));
@@ -121,14 +121,14 @@
     (rule.appliesTo || []).forEach(function (target) { applies.appendChild(element("span", null, target)); });
     card.appendChild(applies);
     var checks = element("section", "rule-checks");
-    checks.appendChild(element("h3", null, "검증 항목"));
+    checks.appendChild(element("h3", null, "Verification checks"));
     (rule.verification?.checks || []).forEach(function (check) { checks.appendChild(element("p", null, "✓ " + check)); });
     card.appendChild(checks);
     card.appendChild(element("p", "rule-source-label", sourceLabel(rule.source)));
     if (entry.kind === "feedback" && rule.status === "proposed") {
       var actions = element("div", "rule-actions");
-      var approve = element("button", "approve", "공통 규칙 승인"); approve.type = "button";
-      var reject = element("button", "reject", "후보 폐기"); reject.type = "button";
+      var approve = element("button", "approve", "Approve common rule"); approve.type = "button";
+      var reject = element("button", "reject", "Drop candidate"); reject.type = "button";
       approve.addEventListener("click", function () { updateProposal(entry.commentId, "approved"); });
       reject.addEventListener("click", function () { updateProposal(entry.commentId, "rejected"); });
       actions.appendChild(approve); actions.appendChild(reject); card.appendChild(actions);
@@ -156,10 +156,10 @@
     var active = entries.filter(function (entry) { return entry.value.status === "active"; }).length;
     var proposed = entries.filter(function (entry) { return ["proposed", "approved"].includes(entry.value.status); }).length;
     document.querySelector("#rules-count").textContent = active || proposed ? String(active + proposed) : "";
-    document.querySelector("#rules-revision").textContent = rulesData.rulesRevision ? "revision " + rulesData.rulesRevision + " · " + rulesData.scope : "공유 규칙 파일 없음";
-    document.querySelector("#rules-description").textContent = rulesData.description || "Agent가 모든 Canvas 작업 전에 읽는 공통 제약과 검증 항목입니다.";
+    document.querySelector("#rules-revision").textContent = rulesData.rulesRevision ? "revision " + rulesData.rulesRevision + " · " + rulesData.scope : "No shared rules file";
+    document.querySelector("#rules-description").textContent = rulesData.description || "Common constraints and verification checks the agent reads before every canvas change.";
     document.querySelector("#rules-counts").textContent = active + " active · " + proposed + " proposed";
-    document.querySelector("#rules-source").textContent = rulesData.source ? "Source · " + rulesData.source : "Source · ../_shared/rules.json을 만들면 자동 연결됩니다.";
+    document.querySelector("#rules-source").textContent = rulesData.source ? "Source · " + rulesData.source : "Source · create ../_shared/rules.json to link it automatically.";
     applyFilter(cards);
   }
 
@@ -172,7 +172,7 @@
   });
   search.addEventListener("input", function () { applyFilter(Array.from(results.children)); });
   document.querySelector("#rules-copy-active").addEventListener("click", function () {
-    copyJson({ rulesRevision: rulesData.rulesRevision, rules: (rulesData.rules || []).filter(function (rule) { return rule.status === "active"; }) }, "활성 규칙 복사됨");
+    copyJson({ rulesRevision: rulesData.rulesRevision, rules: (rulesData.rules || []).filter(function (rule) { return rule.status === "active"; }) }, "Active rules copied");
   });
 
   function setOpen(open) {

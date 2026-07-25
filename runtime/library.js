@@ -37,20 +37,20 @@
   function copyJson(value, label) {
     var text = JSON.stringify(value, null, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { announce(label + " 정의 복사됨"); }, function () { announce("복사할 정의를 펼쳐 확인하세요"); });
-    } else announce("복사할 정의를 펼쳐 확인하세요");
+      navigator.clipboard.writeText(text).then(function () { announce(label + " definition copied"); }, function () { announce("Expand the definition and copy it manually"); });
+    } else announce("Expand the definition and copy it manually");
   }
 
   function definitionDetails(value) {
     var details = element("details", "library-definition");
-    details.appendChild(element("summary", null, "정의 데이터 보기"));
+    details.appendChild(element("summary", null, "View definition data"));
     details.appendChild(element("pre", null, JSON.stringify(value, null, 2)));
     return details;
   }
 
   function cardHead(kind, id, title, definition) {
     var head = element("header", "library-card-head");
-    var copy = element("button", "library-copy", "정의 복사");
+    var copy = element("button", "library-copy", "Copy definition");
     copy.type = "button";
     copy.addEventListener("click", function () { copyJson(definition, id); });
     var identity = element("div");
@@ -90,7 +90,7 @@
       copy.appendChild(element("strong", null, row[0]));
       copy.appendChild(element("code", null, row[1]));
       if (foundation.kind === "typography") {
-        var sample = element("span", "type-sample", "가나다 Typography 0123");
+        var sample = element("span", "type-sample", "Aa Bb Typography 0123");
         if (row[0].endsWith("size")) sample.style.fontSize = row[1];
         if (row[0].endsWith("weight")) sample.style.fontWeight = row[1];
         if (row[0].endsWith("lineHeight")) sample.style.lineHeight = row[1];
