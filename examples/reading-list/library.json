@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-reading-list-example",
+  "library": {
+    "id": "design-library-reading-list",
+    "title": "Reading List UI Kit",
+    "version": "v1",
+    "description": "Agent와 사람이 함께 읽는 Canvas-local Design Library 정의."
+  },
+  "foundations": [],
+  "layouts": [],
+  "components": [
+    {
+      "id": "ui-button",
+      "name": "Button",
+      "description": "명확한 사용자 action을 실행하는 semantic button.",
+      "contract": {
+        "element": "button",
+        "className": "sc-button",
+        "props": {
+          "variant": {
+            "type": "enum",
+            "values": ["primary", "secondary"],
+            "default": "primary",
+            "description": "action 중요도"
+          }
+        },
+        "slots": ["default"],
+        "events": ["click"],
+        "states": ["default", "hover", "focus-visible", "disabled"],
+        "tokens": ["color.accent", "space.4", "radius.md"]
+      },
+      "accessibility": ["accessible name 필수", "keyboard focus 표시 유지"],
+      "guidance": {
+        "use": ["동사형 action 문구"],
+        "avoid": ["탐색 링크를 button으로 표현"]
+      },
+      "preview": {
+        "tag": "button",
+        "className": "sc-button",
+        "text": "책 열기",
+        "attributes": { "type": "button" }
+      },
+      "stories": [
+        { "id": "story-button-primary", "title": "Primary", "props": { "variant": "primary" } },
+        { "id": "story-button-secondary", "title": "Secondary", "props": { "variant": "secondary" } }
+      ]
+    },
+    {
+      "id": "ui-book-card",
+      "name": "Book card",
+      "description": "책 한 권의 제목, 저자와 진행 상태를 요약하는 목록 card.",
+      "contract": {
+        "element": "article",
+        "className": "sc-book-card",
+        "props": {
+          "progress": {
+            "type": "enum",
+            "values": ["unread", "reading", "done"],
+            "default": "unread",
+            "description": "독서 진행 상태"
+          }
+        },
+        "slots": ["title", "author", "meta"],
+        "events": ["click"],
+        "states": ["default", "hover", "focus-visible"],
+        "tokens": ["color.surface", "color.border", "radius.lg", "shadow.surface"]
+      },
+      "accessibility": ["card 전체가 하나의 클릭 대상이면 accessible name을 제공"],
+      "guidance": {
+        "use": ["목록에서 동일한 정보 구조 반복"],
+        "avoid": ["card 안에 독립 button 여러 개 중첩"]
+      },
+      "preview": {
+        "tag": "article",
+        "className": "sc-book-card",
+        "text": "예제 책 제목",
+        "attributes": {}
+      },
+      "stories": [
+        { "id": "story-book-card-reading", "title": "Reading", "props": { "progress": "reading" } }
+      ]
+    }
+  ]
+}

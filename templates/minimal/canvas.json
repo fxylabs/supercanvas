@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "canvas": {
+    "id": "canvas-replace-with-unique-id",
+    "title": "Replace with Canvas title",
+    "version": "v1",
+    "language": "ko"
+  },
+  "sources": {
+    "library": "library.json",
+    "rules": "rules.json",
+    "relations": "relations.json",
+    "actions": "actions.json",
+    "notes": "notes.json",
+    "feedback": "feedback.json"
+  },
+  "styles": ["styles/canvas.css"],
+  "layout": {
+    "padding": 80,
+    "gap": 120
+  },
+  "frames": [
+    {
+      "id": "frame-replace-home",
+      "title": "첫 Frame",
+      "summary": "새 Canvas package의 첫 화면. 실제 화면 요약으로 교체한다.",
+      "kind": "desktop",
+      "tags": ["replace"],
+      "uses": ["styles/canvas.css"],
+      "source": "frames/frame-replace-home.html",
+      "width": 720,
+      "height": 480,
+      "x": 80,
+      "y": 80
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-reading-list-example",
+  "canvasVersion": "v1",
+  "feedbackRevision": 1,
+  "review": {
+    "id": "review-reading-list-001",
+    "status": "active",
+    "createdAt": "2026-07-25T00:00:00.000Z"
+  },
+  "archive": [],
+  "comments": []
+}

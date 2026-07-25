@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-replace-with-unique-id",
+  "library": {
+    "id": "design-library-replace",
+    "title": "Replace with UI Kit title",
+    "version": "v1",
+    "description": "Agent와 사람이 함께 읽는 Canvas-local Design Library 정의."
+  },
+  "foundations": [],
+  "layouts": [],
+  "components": []
+}

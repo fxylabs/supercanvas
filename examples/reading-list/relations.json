@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-reading-list-example",
+  "groups": [
+    {
+      "id": "group-reading-flow",
+      "title": "독서 흐름",
+      "members": ["frame-reading-home", "frame-reading-detail"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-home-detail",
+      "from": "frame-reading-home",
+      "to": "frame-reading-detail",
+      "label": "책 열기",
+      "route": {
+        "type": "orthogonal",
+        "from": { "type": "action", "id": "action-open-book", "port": "right" },
+        "to": { "type": "frame", "id": "frame-reading-detail", "port": "left" },
+        "lane": 0
+      }
+    },
+    {
+      "id": "conn-detail-home",
+      "from": "frame-reading-detail",
+      "to": "frame-reading-home",
+      "label": "목록으로",
+      "kind": "branch",
+      "route": {
+        "type": "orthogonal",
+        "from": { "type": "action", "id": "action-back-to-list", "port": "top" },
+        "to": { "type": "frame", "id": "frame-reading-home", "port": "top" },
+        "lane": 1
+      }
+    }
+  ]
+}

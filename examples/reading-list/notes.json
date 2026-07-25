@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-reading-list-example",
+  "notes": [
+    {
+      "id": "note-open-book-policy",
+      "kind": "policy",
+      "target": { "type": "action", "id": "action-open-book" },
+      "title": "상세 진입 정책",
+      "text": "목록에는 사용자가 직접 저장한 책만 노출한다. 삭제된 책의 상세 화면은 열지 않는다."
+    },
+    {
+      "id": "note-detail-frame-rationale",
+      "kind": "rationale",
+      "target": { "type": "frame", "id": "frame-reading-detail", "x": 94, "y": 8 },
+      "title": "결과를 별도 Frame으로 표현",
+      "text": "클릭 결과를 DOM 임시 변경이 아니라 별도 Frame으로 남겨 상태 전후를 비교하고 리뷰할 수 있게 한다."
+    }
+  ]
+}

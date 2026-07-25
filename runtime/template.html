@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="{{LANG}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{TITLE}}</title>
+  <style>
+{{RUNTIME_CSS}}
+{{CANVAS_CSS}}
+  </style>
+</head>
+<body data-mode="board">
+  <header id="deck">
+    <div class="deck-title"><span id="canvas-title"></span><span class="ver" id="ver-badge"></span></div>
+    <div class="frame-picker">
+      <button id="frame-picker-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="frame-picker-panel">
+        <span class="picker-overline">Frame</span>
+        <strong id="frame-picker-value">Frame 선택</strong>
+        <span class="picker-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id="frame-picker-panel" role="dialog" aria-label="Frame 검색" hidden>
+        <label for="frame-search">Frame 검색</label>
+        <input id="frame-search" type="search" placeholder="이름, ID, 설명 검색" autocomplete="off">
+        <nav id="frame-tabs" aria-label="검색된 Frame"></nav>
+        <p id="frame-search-empty" hidden>일치하는 Frame이 없습니다.</p>
+      </div>
+    </div>
+    <div class="deck-actions" aria-label="Canvas 도구">
+      <div class="tool-group mode-tools" role="group" aria-label="보기 모드">
+        <button id="mode-board" class="on" type="button" aria-pressed="true" title="Canvas 전체를 이동하고 review target을 선택합니다">보드</button>
+        <button id="mode-interact" type="button" aria-pressed="false" title="선택한 HTML Frame의 scroll, hover, click을 실행합니다">실행</button>
+        <button id="library-btn" type="button" aria-pressed="false" title="Design Library 정의와 Story를 탐색합니다">UI Kit</button>
+        <button id="rules-btn" type="button" aria-pressed="false" title="모든 Canvas 작업에 적용되는 공통 규칙을 검토합니다">공통 규칙 <span id="rules-count"></span></button>
+      </div>
+      <div class="tool-group review-tools" role="group" aria-label="리뷰 표시">
+        <button id="notes-btn" type="button" aria-pressed="false">기획 노트</button>
+        <button id="comment-btn" type="button" aria-pressed="false"><span class="comment-glyph" aria-hidden="true"></span> 댓글 <span id="cmt-count"></span></button>
+      </div>
+      <div class="file-menu">
+        <button id="file-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="file-menu-panel">피드백 <span aria-hidden="true">⌄</span></button>
+        <div id="file-menu-panel" role="menu" hidden>
+          <button id="export-btn" type="button" role="menuitem">저장하기</button>
+          <button id="clear-all-comments" type="button" role="menuitem">전체 댓글 클리어</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="canvas" role="region" aria-label="디자인 캔버스" tabindex="0">
+    <main id="world"></main>
+  </div>
+
+  <section id="library-view" aria-labelledby="library-title" hidden>
+    <aside class="library-sidebar">
+      <p class="library-overline">Design Library</p>
+      <h1 id="library-title"></h1>
+      <p id="library-version"></p>
+      <label for="library-search">Library 검색</label>
+      <input id="library-search" type="search" placeholder="ID, 이름, prop, state 검색" autocomplete="off">
+      <nav id="library-nav" aria-label="Library 분류">
+        <button class="on" type="button" data-kind="all">전체</button>
+        <button type="button" data-kind="foundation">Foundations</button>
+        <button type="button" data-kind="layout">Layouts</button>
+        <button type="button" data-kind="component">Components</button>
+      </nav>
+    </aside>
+    <main class="library-main">
+      <header class="library-main-head">
+        <div><p id="library-description"></p><strong id="library-counts"></strong></div>
+        <button id="library-copy-all" type="button">전체 정의 복사</button>
+      </header>
+      <div id="library-results"></div>
+      <p id="library-empty" hidden>일치하는 Library 항목이 없습니다.</p>
+    </main>
+  </section>
+
+  <section id="rules-view" aria-labelledby="rules-title" hidden>
+    <aside class="rules-sidebar">
+      <p class="rules-overline">Canvas Constitution</p>
+      <h1 id="rules-title">공통 규칙</h1>
+      <p id="rules-revision"></p>
+      <label for="rules-search">규칙 검색</label>
+      <input id="rules-search" type="search" placeholder="규칙, 분류, 적용 대상 검색" autocomplete="off">
+      <nav id="rules-nav" aria-label="규칙 상태">
+        <button class="on" type="button" data-status="all">전체</button>
+        <button type="button" data-status="active">활성 규칙</button>
+        <button type="button" data-status="proposed">승인 대기</button>
+      </nav>
+      <p class="rules-source" id="rules-source"></p>
+    </aside>
+    <main class="rules-main">
+      <header class="rules-main-head">
+        <div><p id="rules-description"></p><strong id="rules-counts"></strong></div>
+        <button id="rules-copy-active" type="button">활성 규칙 복사</button>
+      </header>
+      <div id="rules-results"></div>
+      <p id="rules-empty" hidden>일치하는 공통 규칙이 없습니다.</p>
+    </main>
+  </section>
+
+  <div id="mode-hint" aria-live="polite">보드 검토 · Frame을 선택하고 Enter를 누르면 실행합니다.</div>
+  <aside id="action-inspector" aria-labelledby="action-inspector-title" tabindex="-1">
+    <button id="action-inspector-close" type="button" aria-label="Action 설명 닫기">×</button>
+    <p class="inspector-kicker">User action</p>
+    <h2 id="action-inspector-title"></h2>
+    <code id="action-inspector-id"></code>
+    <div id="action-inspector-notes"></div>
+  </aside>
+  <div id="transition-status" role="status" aria-live="polite"></div>
+
+  <div id="zoom-hud" aria-label="캔버스 확대/축소">
+    <button id="zoom-out" type="button" aria-label="축소">−</button>
+    <button id="zoom-fit" type="button">맞춤</button>
+    <button id="zoom-100" type="button">100%</button>
+    <span id="zoom-pct">100%</span>
+    <button id="zoom-in" type="button" aria-label="확대">＋</button>
+  </div>
+
+  <div id="popover" role="dialog" aria-label="댓글"></div>
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <button class="modal-close" type="button">닫기</button>
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="application/json" id="canvas-data">{{CANVAS_DATA}}</script>
+  <script>
+{{PZ_CANVAS_JS}}
+  </script>
+  <script>
+{{FEEDBACK_JS}}
+  </script>
+  <script>
+{{BOARD_JS}}
+  </script>
+  <script>
+{{LIBRARY_JS}}
+  </script>
+  <script>
+{{RULES_JS}}
+  </script>
+</body>
+</html>

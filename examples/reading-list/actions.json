@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "canvasId": "canvas-reading-list-example",
+  "actions": [
+    {
+      "id": "action-open-book",
+      "label": "책 상세 열기",
+      "from": {
+        "frameId": "frame-reading-home",
+        "anchor": "action-open-book"
+      },
+      "trigger": "click",
+      "outcome": {
+        "type": "frame",
+        "frameId": "frame-reading-detail"
+      },
+      "connectionId": "conn-home-detail"
+    },
+    {
+      "id": "action-back-to-list",
+      "label": "목록으로 돌아가기",
+      "from": {
+        "frameId": "frame-reading-detail",
+        "anchor": "action-back-to-list"
+      },
+      "trigger": "click",
+      "outcome": {
+        "type": "frame",
+        "frameId": "frame-reading-home"
+      },
+      "connectionId": "conn-detail-home"
+    }
+  ]
+}

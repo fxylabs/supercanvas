@@ -1,0 +1,9 @@
+.example-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 100%;
+  color: #19171d;
+  background: #ffffff;
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
+}
