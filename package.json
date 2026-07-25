@@ -1,10 +1,14 @@
 {
-    "name": "supercanvas",
+    "name": "@superself/supercanvas",
     "version": "0.1.0",
     "description": "Agent-editable design canvas engine with a global CLI",
     "type": "module",
     "bin": {
         "supercanvas": "bin/supercanvas.mjs"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
     },
     "files": [
         "bin/",
