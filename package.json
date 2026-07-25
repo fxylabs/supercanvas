@@ -6,6 +6,33 @@
     "bin": {
         "supercanvas": "bin/supercanvas.mjs"
     },
+    "files": [
+        "bin/",
+        "runtime/",
+        "templates/",
+        "*.mjs"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/fxylabs/supercanvas.git"
+    },
+    "homepage": "https://github.com/fxylabs/supercanvas#readme",
+    "bugs": {
+        "url": "https://github.com/fxylabs/supercanvas/issues"
+    },
+    "keywords": [
+        "canvas",
+        "infinite-canvas",
+        "design",
+        "design-tools",
+        "prototyping",
+        "moodboard",
+        "wireframe",
+        "agent",
+        "ai-agent",
+        "cli"
+    ],
+    "author": "rayim <rayim@fxy.global>",
     "engines": {
         "node": ">=20"
     },
