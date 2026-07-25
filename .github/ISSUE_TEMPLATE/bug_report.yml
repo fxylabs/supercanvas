@@ -1,0 +1,103 @@
+name: Bug report
+description: Report reproducible behavior that differs from the documented contract
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove secrets, credentials, and private canvas content before submitting.
+        Opening an issue is not approval to implement it. Wait for `status:accepted` and maintainer assignment before opening a pull request.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Use a release tag or npm version when available, otherwise the output of `git rev-parse --short HEAD`.
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux x64
+        - Linux arm64
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Node.js version
+      placeholder: Node 22.20.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options:
+        - new
+        - add / list / remove
+        - view
+        - update / render / verify
+        - context
+        - migrate
+        - Generated canvas in the browser
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Give the smallest sequence that reproduces the problem. A minimal canvas package layout helps.
+      placeholder: |
+        1. supercanvas new demo
+        2. Edit frames/... to ...
+        3. supercanvas update demo
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized logs
+      description: Remove credentials, absolute private paths, and personal data.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: data-impact
+    attributes:
+      label: Local data impact
+      options:
+        - label: The issue may corrupt, delete, or make canvas package or registry data inaccessible.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: I removed secrets, credentials, and private data.
+          required: true
