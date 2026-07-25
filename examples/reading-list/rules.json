@@ -3,41 +3,41 @@
   "rulesRevision": 1,
   "scope": "canvas",
   "title": "Reading List Canvas Rules",
-  "description": "예제 package 전용 규칙. 여러 Canvas가 같은 규칙을 쓰려면 ../_shared/rules.json으로 옮긴다.",
+  "description": "Rules local to the example package. Move them to ../_shared/rules.json when several Canvases need the same rules.",
   "rules": [
     {
       "id": "rule-canvas-input-ownership",
-      "title": "Canvas와 Frame 입력 소유권을 분리한다",
+      "title": "Separate Canvas and Frame input ownership",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "보드와 댓글 모드에서는 Canvas가 pan/zoom을 소유하고 프레임 실행 모드에서는 HTML Frame이 내부 상호작용을 소유한다.",
-      "rationale": "Canvas 탐색과 화면 실행의 입력 충돌을 방지한다.",
+      "statement": "In board and comment mode the Canvas owns pan/zoom; in frame run mode the HTML Frame owns its internal interaction.",
+      "rationale": "Prevents input conflicts between Canvas navigation and running a screen.",
       "appliesTo": ["canvas", "frame", "interaction"],
       "source": { "type": "user-instruction", "ref": "canvas-input-modes" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "댓글 모드에서 Frame 위 wheel로 Canvas가 이동한다.",
-          "프레임 실행 모드에서 Frame 내부 scroll, hover, click이 동작한다."
+          "In comment mode, a wheel event over a Frame pans the Canvas.",
+          "In frame run mode, scroll, hover and click work inside the Frame."
         ]
       }
     },
     {
       "id": "rule-action-outcome-frame",
-      "title": "상태 변화는 별도 결과 Frame으로 보여준다",
+      "title": "Show state changes as a separate outcome Frame",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "사용자 Action으로 화면 상태가 바뀌면 결과를 별도 Frame으로 만들고 Connection으로 연결한다.",
-      "rationale": "정적인 디자인 검토에서도 원인과 결과를 추적할 수 있게 한다.",
+      "statement": "When a user Action changes screen state, build the result as a separate Frame and join them with a Connection.",
+      "rationale": "Keeps cause and effect traceable even in a static design review.",
       "appliesTo": ["action", "frame", "connection"],
       "source": { "type": "user-instruction", "ref": "action-outcome-frames" },
       "verification": {
         "type": "agent-checklist",
         "checks": [
-          "상태를 바꾸는 Action에 outcome Frame이 있다.",
-          "Action과 결과 Frame 사이 Connection이 정의되어 있다."
+          "Every state-changing Action has an outcome Frame.",
+          "A Connection is defined between the Action and its outcome Frame."
         ]
       }
     }

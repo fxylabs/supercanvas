@@ -4,7 +4,7 @@
   "actions": [
     {
       "id": "action-open-book",
-      "label": "책 상세 열기",
+      "label": "Open book detail",
       "from": {
         "frameId": "frame-reading-home",
         "anchor": "action-open-book"
@@ -18,7 +18,7 @@
     },
     {
       "id": "action-back-to-list",
-      "label": "목록으로 돌아가기",
+      "label": "Back to the list",
       "from": {
         "frameId": "frame-reading-detail",
         "anchor": "action-back-to-list"

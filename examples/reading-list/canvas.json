@@ -4,7 +4,7 @@
     "id": "canvas-reading-list-example",
     "title": "Reading List — Supercanvas Example",
     "version": "v1",
-    "language": "ko"
+    "language": "en"
   },
   "sources": {
     "tokens": "design/tokens.json",
@@ -23,8 +23,8 @@
   "frames": [
     {
       "id": "frame-reading-home",
-      "title": "읽기 목록",
-      "summary": "저장한 책 목록을 보여주고 첫 항목을 클릭해 상세 화면으로 이동하는 시작 화면.",
+      "title": "Reading list",
+      "summary": "Entry screen that lists saved books; clicking the first item opens the detail screen.",
       "kind": "desktop",
       "tags": ["example", "list", "action"],
       "uses": ["design/tokens.json", "styles/canvas.css"],
@@ -37,8 +37,8 @@
     },
     {
       "id": "frame-reading-detail",
-      "title": "책 상세",
-      "summary": "책 하나의 메모와 진행 상태를 보여주고 목록으로 돌아가는 결과 화면.",
+      "title": "Book detail",
+      "summary": "Outcome screen showing one book's notes and reading progress, with a way back to the list.",
       "kind": "desktop",
       "tags": ["example", "action-outcome", "detail"],
       "uses": ["design/tokens.json", "styles/canvas.css"],

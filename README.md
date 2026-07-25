@@ -1,9 +1,9 @@
 # Supercanvas
 
-Agent가 만들고 사람이 검토하는 local design-artifact canvas다. HTML Frame을 정적 이미지가
-아니라 실제로 scroll, hover, click, keyboard로 실행하고, 사람이 stable target ID에 피드백을
-남기면 Agent가 전체 캔버스를 읽지 않고 해당 target의 최소 source만 수정하는 review loop를
-제공한다.
+A local design-artifact canvas that Agents build and people review. HTML Frames are not static
+images — they really run with scroll, hover, click and keyboard. When a person leaves feedback on a
+stable target ID, the Agent edits only the minimum source for that target instead of reading the
+whole canvas. That is the review loop this engine provides.
 
 ```text
 Agent renders a visual artifact
@@ -13,49 +13,49 @@ Agent renders a visual artifact
 → render, compare and review again
 ```
 
-핵심 구성요소:
+Core parts:
 
-- `render.mjs` — data package를 standalone HTML canvas로 렌더링
-- `context.mjs` — target ID를 최소 source 파일 집합으로 해석하는 selective context router
-- `verify.mjs` — schema, ID 무결성, feedback round-trip, context cost 검증
-- `update.mjs` — package 렌더 + 검증을 한 번에 실행
+- `render.mjs` — renders a data package into a standalone HTML canvas
+- `context.mjs` — selective context router that resolves a target ID into the minimum set of source files
+- `verify.mjs` — verifies schema, ID integrity, feedback round-trip and context cost
+- `update.mjs` — renders and verifies a package in one run
 - `runtime/` — pan/zoom board, Frame interact, feedback, UI Kit, rules viewer
-- `templates/minimal/` — 새 Canvas package의 최소 skeleton
+- `templates/minimal/` — minimal skeleton for a new Canvas package
 
 ## Quickstart
 
 ```sh
 git clone https://github.com/fxylabs/supercanvas.git
 cd supercanvas
-npm link                      # 전역 supercanvas 커맨드 설치
+npm link                      # install the global supercanvas command
 supercanvas update examples/reading-list
 supercanvas view examples/reading-list
 ```
 
-`supercanvas new <dir>`로 새 package를 스캐폴드하고, `add`로 기존 package를 머신 레지스트리
-(`~/.supercanvas/registry.json`)에 등록하면 이후 모든 커맨드에서 경로 대신 slug를 쓸 수 있다.
-전체 커맨드는 `supercanvas help`, 설계는 `docs/cli-design.md`를 본다.
+Scaffold a new package with `supercanvas new <dir>`, and register an existing package in the machine
+registry (`~/.supercanvas/registry.json`) with `add` so every later command can take a slug instead
+of a path. Run `supercanvas help` for the full command list; see `docs/cli-design.md` for the design.
 
-Output은 CSS, runtime과 JSON snapshot을 내장한 standalone HTML이므로 `file://`로 열 수 있다.
-Generated output은 Agent input이 아니다.
+The output is standalone HTML with CSS, runtime and the JSON snapshot inlined, so it opens over
+`file://`. Generated output is not Agent input.
 
-새 Canvas package를 만드는 절차는 `docs/authoring-guide.md`를 따른다. engine 코드는 복사하지
-않고 data package만 작성한다.
+Follow `docs/authoring-guide.md` to create a new Canvas package. Write only the data package — never
+copy the engine code.
 
 ## Agent editing boundary
 
-Agent가 기본적으로 읽고 수정할 것은 target router가 반환한 최소 source뿐이다.
+By default an Agent reads and edits nothing but the minimum source returned by the target router.
 
-1. 먼저 `feedback.json`의 comment ID 또는 stable target ID를 확인한다.
-2. `context.mjs`로 필요한 source path를 resolve한다.
-3. 모든 context 결과의 `commonRules.active`를 먼저 적용하고 verification checks를 완료 조건에 포함한다.
-4. UI/UX 작업이면 Canvas target의 `libraryIndex`를 확인하고 기존 Library ID를 먼저 조회한다.
-5. Frame 작업이면 해당 `frames/<frame-id>.html`만 읽는다.
-6. Relation/Note 작업이면 각각 `relations.json`/`notes.json`만 읽는다.
-7. 전역 visual 변경일 때만 token/component source를 추가로 읽는다.
+1. Start from a comment ID in `feedback.json` or a stable target ID.
+2. Resolve the required source paths with `context.mjs`.
+3. Apply `commonRules.active` from every context result first, and include its verification checks in your definition of done.
+4. For UI/UX work, check the Canvas target's `libraryIndex` and look up existing Library IDs first.
+5. For Frame work, read only that `frames/<frame-id>.html`.
+6. For Relation or Note work, read only `relations.json` or `notes.json` respectively.
+7. Read token/component source only when the change is a global visual one.
 
-`runtime/`과 `render.mjs`는 canvas infrastructure다. 프레임을 설계하거나 정책을 수정할 때
-읽을 필요가 없다. 생성된 `canvas.html`도 검토 결과물이며 source가 아니다.
+`runtime/` and `render.mjs` are canvas infrastructure. You do not need to read them to design a
+frame or change a policy. The generated `canvas.html` is a review artifact too, not source.
 
 ## Thin manifest
 
@@ -66,7 +66,7 @@ Agent가 기본적으로 읽고 수정할 것은 target router가 반환한 최�
     "id": "canvas-unique-id",
     "title": "Canvas title",
     "version": "v1",
-    "language": "ko"
+    "language": "en"
   },
   "sources": {
     "tokens": "design/tokens.json",
@@ -97,31 +97,33 @@ Agent가 기본적으로 읽고 수정할 것은 target router가 반환한 최�
 
 Frame ID rules:
 
-- canvas 안에서 unique
-- lowercase letter로 시작
-- lowercase letters, digits, hyphen만 사용
+- unique within the canvas
+- starts with a lowercase letter
+- lowercase letters, digits and hyphens only
 - 3–64 characters
-- comment, connection, tab과 exported feedback의 stable anchor
+- stable anchor for comments, connections, tabs and exported feedback
 
-Frame 외에도 Canvas, Group, Connection, Note, Comment와 Library/Foundations/Layouts/Components/Stories가
-같은 형식의 unique stable ID를 가진다. `relations.json`, `notes.json`, `feedback.json`의 모든
-참조는 renderer가 target type과 함께 검증한다.
+Beyond Frames, Canvas, Group, Connection, Note and Comment as well as
+Library/Foundations/Layouts/Components/Stories all carry unique stable IDs in the same format. The
+renderer validates every reference in `relations.json`, `notes.json` and `feedback.json` together
+with its target type.
 
-Schema v2는 `action-*` target과 `actions.json`, deterministic revision metadata를 추가한다.
-Renderer와 context router는 v1 package를 읽을 때 v2 형태로 memory migration하지만 source를
-자동으로 덮어쓰지 않는다. 다음 major schema가 나오기 전까지 v1 read compatibility를 유지한다.
+Schema v2 adds `action-*` targets, `actions.json` and deterministic revision metadata. The renderer
+and the context router migrate a v1 package to the v2 shape in memory when reading it, but never
+overwrite the source automatically. v1 read compatibility is kept until the next major schema.
 
 ## Design Library inside Canvas
 
-`library.json`은 Canvas 안의 Storybook형 UI Kit과 Agent context가 함께 읽는 canonical definition
-data다. React component나 CSS 파일은 필수 source가 아니다. Agent는 props, state, slot, event,
-token dependency, accessibility와 usage guidance를 읽고 목적 프로젝트에 맞는 구현을 만든다.
+`library.json` is the canonical definition data read both by the Storybook-style UI Kit inside the
+Canvas and by Agent context. React components or CSS files are not required source. The Agent reads
+props, states, slots, events, token dependencies, accessibility and usage guidance, then builds an
+implementation that fits the target project.
 
 ```json
 {
   "id": "ui-button",
   "name": "Button",
-  "description": "명확한 사용자 action을 실행하는 semantic button.",
+  "description": "Semantic button that runs an explicit user action.",
   "contract": {
     "element": "button",
     "className": "sc-button",
@@ -130,7 +132,7 @@ token dependency, accessibility와 usage guidance를 읽고 목적 프로젝트�
         "type": "enum",
         "values": ["primary", "secondary", "danger"],
         "default": "primary",
-        "description": "action 중요도와 위험도"
+        "description": "Importance and risk of the action"
       }
     },
     "slots": ["default", "leadingIcon"],
@@ -138,10 +140,10 @@ token dependency, accessibility와 usage guidance를 읽고 목적 프로젝트�
     "states": ["default", "hover", "focus-visible", "disabled"],
     "tokens": ["color.accent", "radius.md"]
   },
-  "accessibility": ["accessible name 필수", "keyboard focus 표시 유지"],
+  "accessibility": ["Accessible name required", "Keep the keyboard focus indicator visible"],
   "guidance": {
-    "use": ["동사형 action"],
-    "avoid": ["탐색 링크를 button으로 표현"]
+    "use": ["Verb-phrase actions"],
+    "avoid": ["Rendering a navigation link as a button"]
   },
   "stories": [
     { "id": "story-button-primary", "title": "Primary", "props": { "variant": "primary" } }
@@ -149,22 +151,24 @@ token dependency, accessibility와 usage guidance를 읽고 목적 프로젝트�
 }
 ```
 
-Canvas header의 `UI Kit` view는 foundations, layouts와 components를 검색하고 Story를 실행하며
-각 항목의 exact JSON definition을 표시·복사한다. Frame은 manifest의 `libraryUses`로 Library
-dependency를 선언하고 실제 component root에는 `data-ui`를 둔다.
+The `UI Kit` view in the Canvas header searches foundations, layouts and components, runs Stories,
+and shows and copies the exact JSON definition of each entry. A Frame declares its Library
+dependencies with `libraryUses` in the manifest and marks each real component root with `data-ui`.
 
 ```html
 <button class="sc-button" data-ui="ui-button" type="button">New project</button>
 ```
 
-Renderer는 `data-ui`가 등록된 component인지, Frame의 `libraryUses`에도 선언됐는지 검증한다.
-`context.mjs --target ui-button`은 전체 generated HTML 대신 정확한 component definition, 사용
-Frame과 선택적 token/source 경로만 반환한다.
+The renderer checks that every `data-ui` names a registered component and that it is also declared
+in the Frame's `libraryUses`. `context.mjs --target ui-button` returns the exact component
+definition, the Frames that use it and optional token/source paths instead of the whole generated
+HTML.
 
 ## Common Rules inside Canvas
 
-`rules.json`은 UI Kit과 별개로 Agent의 Canvas authoring behavior를 제한하는 규칙 계약이다.
-각 package 안에 복제하지 않으려면 Canvas collection에 공유 파일을 둔다.
+Separately from the UI Kit, `rules.json` is the rule contract that constrains the Agent's Canvas
+authoring behavior. To avoid duplicating it in every package, put a shared file at the Canvas
+collection root.
 
 ```text
 canvas-root/
@@ -173,8 +177,9 @@ canvas-root/
 └── onboarding-review/
 ```
 
-manifest에 `sources.rules`가 없으면 renderer와 context router가 `../_shared/rules.json`을 자동으로
-찾는다. package 전용 규칙이 필요할 때만 `sources.rules: "rules.json"`을 명시한다.
+When the manifest has no `sources.rules`, the renderer and the context router automatically look up
+`../_shared/rules.json`. Declare `sources.rules: "rules.json"` only when a package needs its own
+rules.
 
 ```json
 {
@@ -184,46 +189,46 @@ manifest에 `sources.rules`가 없으면 renderer와 context router가 `../_shar
   "rules": [
     {
       "id": "rule-frame-input-ownership",
-      "title": "Canvas와 Frame 입력 소유권을 분리한다",
+      "title": "Separate Canvas and Frame input ownership",
       "status": "active",
       "priority": "must",
       "category": "interaction",
-      "statement": "보드와 댓글 모드에서는 Canvas가 pan/zoom을 소유한다.",
-      "rationale": "Frame interaction과 Canvas navigation의 충돌을 막는다.",
+      "statement": "In board and comment mode the Canvas owns pan/zoom.",
+      "rationale": "Prevents Frame interaction from fighting Canvas navigation.",
       "appliesTo": ["canvas", "frame"],
       "source": { "type": "user-instruction", "ref": "input-modes" },
       "verification": {
         "type": "agent-checklist",
-        "checks": ["댓글 모드의 Frame 위 wheel이 Canvas를 이동한다."]
+        "checks": ["In comment mode, a wheel event over a Frame pans the Canvas."]
       }
     }
   ]
 }
 ```
 
-`status`는 `active | proposed | deprecated`, `priority`는 `must | should`다. 사용자가 명시적으로
-공통 규칙을 요청하면 Agent가 active rule로 기록한다. 댓글에서 Agent가 일반화한 규칙은
-`ruleProposal.status: proposed`로 제안하고 사용자 승인 전에는 active로 승격하지 않는다.
-Canvas header의 `공통 규칙` view에서 활성 규칙, 승인 대기 후보, provenance와 verification을
-검색·검토할 수 있다.
+`status` is `active | proposed | deprecated` and `priority` is `must | should`. When the user asks
+for a common rule explicitly, the Agent records it as an active rule. A rule the Agent generalized
+from a comment is proposed as `ruleProposal.status: proposed` and is never promoted to active before
+the user approves it. The `Common rules` view in the Canvas header lets you search and review active
+rules, candidates awaiting approval, provenance and verification.
 
-모든 `context.mjs` 결과는 target 종류와 관계없이 `commonRules.active`를 내장한다.
-`context.mjs --target <rule-id>`는 정확한 규칙 정의와 source를 반환한다. Agent는 active rule을
-적용하고 각 verification check를 확인한 뒤에만 관련 Comment를 resolved로 바꾼다.
+Every `context.mjs` result embeds `commonRules.active` regardless of the target type.
+`context.mjs --target <rule-id>` returns the exact rule definition and its source. The Agent applies
+the active rules and marks a related Comment resolved only after confirming each verification check.
 
 ## Executable frame actions
 
-중요한 상태 변화는 Frame 내부 DOM을 임시로 바꾸지 않고 별도 outcome Frame으로 남긴다.
-Frame markup은 stable action anchor만 선언한다.
+Significant state changes are captured as a separate outcome Frame instead of mutating Frame DOM
+in place. Frame markup declares only the stable action anchor.
 
 ```html
-<button data-action="action-open-project">프로젝트 열기</button>
+<button data-action="action-open-project">Open project</button>
 ```
 
 ```json
 {
   "id": "action-open-project",
-  "label": "프로젝트 열기",
+  "label": "Open project",
   "from": { "frameId": "frame-project-list", "anchor": "action-open-project" },
   "trigger": "click",
   "outcome": { "type": "frame", "frameId": "frame-project-detail" },
@@ -231,15 +236,16 @@ Frame markup은 stable action anchor만 선언한다.
 }
 ```
 
-`click`, `hover`, `scroll`, `input` trigger를 protocol이 인식한다. 현재 runtime은 click outcome
-Frame 전환과 native scroll/hover proof를 제공한다. Action은 Note와 Comment가 연결될 수 있는
-전역 stable target이다. `policy`, `behavior`, `rationale`, `edge-case`, `content` Note는 설계 canon이고,
-Comment는 그 설계를 검토하는 feedback이므로 서로 대체하지 않는다.
+The protocol recognizes the `click`, `hover`, `scroll` and `input` triggers. The current runtime
+provides click-driven outcome Frame transitions plus native scroll/hover proof. Actions are global
+stable targets that Notes and Comments can attach to. `policy`, `behavior`, `rationale`,
+`edge-case` and `content` Notes are design canon, while Comments are feedback reviewing that
+design — the two never substitute for each other.
 
-Connection은 Frame 중심을 잇는 자유곡선을 사용하지 않는다. `route.from`은 실제 Action
-anchor와 `top | right | bottom | left` port를 가리키고, `route.to`는 결과 Frame의 port를
-가리킨다. Runtime은 90° orthogonal segment와 Canvas gutter lane으로 라우팅한다. 반대 방향
-Connection은 다른 `lane`을 사용해 겹치지 않게 한다.
+Connections do not use free curves between Frame centers. `route.from` points at a real Action
+anchor and a `top | right | bottom | left` port, and `route.to` points at a port of the outcome
+Frame. The runtime routes through 90° orthogonal segments and Canvas gutter lanes. Connections in
+opposite directions use different `lane` values so they do not overlap.
 
 ```json
 {
@@ -255,29 +261,29 @@ Connection은 다른 `lane`을 사용해 겹치지 않게 한다.
 }
 ```
 
-Canvas는 두 입력 소유권을 명시적으로 나눈다.
+The Canvas splits input ownership explicitly in two.
 
-- **Board review:** Canvas가 pan/zoom과 target selection을 소유한다.
-- **Frame interact:** 선택한 HTML Frame이 scroll/hover/click/keyboard input을 소유한다.
+- **Board review:** the Canvas owns pan/zoom and target selection.
+- **Frame interact:** the selected HTML Frame owns scroll/hover/click/keyboard input.
 
-Board에서 Frame을 선택하고 Enter 또는 double click으로 실행한다. Frame interact에서는 내부
-scroll이 Canvas로 전달되지 않으며 Escape로 Board에 돌아간다.
+Select a Frame on the board and run it with Enter or a double click. In Frame interact, inner
+scrolling is not forwarded to the Canvas, and Escape returns to the board.
 
 ### Planning Note view
 
-기획 Note는 Comment pin이나 popover로 표시하지 않는다. `기획 노트` view를 켜면 Note card를
-소유 Frame 주변의 외부 rail에 배치하고, target item에는 `N1`, `N2` 형식의 작은 anchor만 둔다.
-Anchor와 card는 orthogonal Note link로 연결한다. Target item, 번호 anchor 또는 Note card를
-선택하면 세 요소가 함께 강조되고 Canvas focus가 Note card로 이동한다.
+Planning Notes are not shown as Comment pins or popovers. Turning on the `Planning notes` view
+places Note cards on an outer rail around the owning Frame and leaves only a small `N1`, `N2` style
+anchor on the target item. Anchors and cards are joined by orthogonal Note links. Selecting the
+target item, the numbered anchor or the Note card highlights all three together and moves Canvas
+focus to the Note card.
 
-Note card는 항상 기획 canon의 전체 title, kind, text와 stable Note ID를 보여준다. Review
-Comment는 기존 feedback pin과 resolution lifecycle을 유지하므로 Planning Note와 시각적으로나
-데이터상으로 섞이지 않는다. Planning Note view는 Board Review에서만 활성화되며 Frame
-Interact에 들어가면 종료된다.
+A Note card always shows the full title, kind and text of the planning canon plus the stable Note
+ID. Review Comments keep the existing feedback pins and resolution lifecycle, so they never mix
+with Planning Notes visually or in the data. The Planning Note view is available only in Board
+Review and closes when you enter Frame Interact.
 
-Frame fragment에는 markup만 둔다. `<script>`와 `<style>`은 renderer가 거부하며 interaction은
-`data-goto="frame-id"`와 `data-toast="message"`를 사용한다. Runtime code를 프레임에
-복제하지 않는다.
+Frame fragments hold markup only. The renderer rejects `<script>` and `<style>`; interaction uses
+`data-goto="frame-id"` and `data-toast="message"`. Never copy runtime code into a frame.
 
 Relationship and note sidecars also remain thin:
 
@@ -306,19 +312,19 @@ Relationship and note sidecars also remain thin:
 
 ## Render and update
 
-data 변경 후 package 경로를 인자로 업데이트 명령 하나를 실행한다.
+After changing data, run a single update command with the package path as its argument.
 
 ```sh
 node update.mjs examples/reading-list
 ```
 
-Canvas collection root를 지정하면 여러 package를 한 번에 다시 생성하고 검증한다.
+Point it at a Canvas collection root to regenerate and verify several packages at once.
 
 ```sh
 node update.mjs --all path/to/canvas-root
 ```
 
-아래 개별 render 명령은 engine을 진단할 때 사용한다.
+Use the individual render command below only when diagnosing the engine.
 
 ```sh
 node render.mjs \
@@ -334,20 +340,22 @@ node context.mjs \
   --target frame-reading-home
 ```
 
-Frame target은 one fragment와 conditional design dependencies, Connection target은 관계와
-endpoint summary, Note target은 note record만 반환한다. Comment ID를 target으로 주면 실제
-수정 target과 적용할 공통 규칙을 안내한다.
+A Frame target returns one fragment plus conditional design dependencies, a Connection target
+returns the relation and endpoint summaries, and a Note target returns only the note record. Give a
+Comment ID as the target and it tells you the real target to edit and the common rules to apply.
 
-Action target은 `actions.json` 한 파일만 required로 반환하고 출발/결과 Frame source는
-conditional로 둔다. 모든 context 결과에는 required/conditional 파일 수와 byte 수가 포함된다.
-Library target은 `library.json`을 required로 하고 exact definition과 이를 사용하는 Frame index를
-결과에 직접 포함한다.
-Rule target은 공유 rules source를 required로 하고 exact rule definition, provenance와 verification
-checks를 반환한다. 그 외 모든 target도 `commonRules.active`를 결과에 포함한다.
+An Action target returns `actions.json` as the only required file and leaves the origin and outcome
+Frame sources conditional. Every context result includes the file count and byte count of both
+required and conditional reads. A Library target makes `library.json` required and puts the exact
+definition and the index of Frames using it directly in the result.
+A Rule target makes the shared rules source required and returns the exact rule definition, its
+provenance and its verification checks. Every other target includes `commonRules.active` in the
+result as well.
 
 ## Feedback portability
 
-Frame Comment는 stable Frame target과 revision에 연결한 뒤 anchor 형태만 구분한다.
+A Frame Comment binds to a stable Frame target and a revision first; only then does the anchor
+shape matter.
 
 ```json
 {
@@ -358,42 +366,45 @@ Frame Comment는 stable Frame target과 revision에 연결한 뒤 anchor 형태�
     "anchor": { "kind": "region", "x": 12.5, "y": 24, "width": 48, "height": 18 }
   },
   "targetRevision": "sha256:...",
-  "text": "이 영역의 정보 밀도를 낮추자",
+  "text": "Let's lower the information density of this region",
   "status": "open"
 }
 ```
 
-댓글 작성 모드에서 click은 point anchor, Frame 내부 drag는 region anchor를 만든다. 좌표와 크기는
-Frame 기준 percentage이므로 Canvas pan/zoom이나 Frame 위치 변경과 무관하다. 기존 point와 region
-댓글 marker는 Board Review에서 `open`과 `discussion`만 기본 노출한다. `resolved`는 기본 화면과
-헤더 댓글 수에서 제외하며, Frame Interact에서는 실제 HTML 입력을 막지 않도록 모든 marker를 숨긴다.
+In comment mode a click creates a point anchor and a drag inside the Frame creates a region anchor.
+Coordinates and sizes are percentages relative to the Frame, so they survive Canvas pan/zoom and
+Frame repositioning. Existing point and region comment markers show only `open` and `discussion` by
+default in Board Review. `resolved` is excluded from the default view and from the comment count in
+the header, and in Frame Interact every marker is hidden so it cannot block real HTML input.
 
-Feedback은 Canvas version과 별도의 review cycle을 가진다. `feedbackRevision`은 Agent가 파일을
-갱신할 때 한 번 증가한다. Comment workflow status와 target revision 상태를 섞지 않는다.
+Feedback runs on a review cycle separate from the Canvas version. `feedbackRevision` increments once
+each time the Agent updates the file. Never conflate Comment workflow status with target revision
+state.
 
-- 빨강 `open`: 아직 처리되지 않음
-- 노랑 `discussion`: Agent 질문이 thread에 있고 사용자 결정이 필요함
-- `resolved`: `resolution.summary`와 변경 target이 기록되며 기본 화면에서는 숨김
-- 보라/회색 점선 `outdated`: 위 status와 별개로 target revision이 변경됐다는 파생 표시
+- red `open`: not handled yet
+- yellow `discussion`: the Agent has a question in the thread and needs a user decision
+- `resolved`: records `resolution.summary` and the changed targets; hidden in the default view
+- purple/gray dashed `outdated`: a derived marker, independent of the statuses above, meaning the target revision changed
 
-사용자는 댓글을 모두 작성한 뒤 `저장하기`로 portable `feedback.json`을 만든다. Agent는
-파일을 읽고 작업한 뒤 resolved 댓글에 새 `targetRevision`, `resolution.summary`, `changes`와
-Agent thread message를 남긴다. 결정이 필요하면 status를 `discussion`으로 바꾸고 thread에 질문을
-남긴다. Agent 결과 파일은 `feedbackRevision`을 증가시킨다.
+Once all comments are written, the user produces a portable `feedback.json` with `Save feedback`.
+The Agent reads the file, does the work, then records a new `targetRevision`, `resolution.summary`,
+`changes` and an Agent thread message on each resolved comment. When a decision is needed it flips
+the status to `discussion` and leaves the question in the thread. The Agent's result file increments
+`feedbackRevision`.
 
-Browser draft key에는 Canvas ID와 `review.id`가 함께 들어간다. 저장된 draft에는
-`baseFeedbackRevision`과 `submittedAt`이 남으며, 더 높은 canonical feedbackRevision이 렌더되면
-제출 완료된 과거 draft는 병합하지 않는다. 따라서 localStorage가 Agent의 resolved 결과를 다시
-open/outdated 상태로 덮어쓸 수 없다.
+The browser draft key combines the Canvas ID and `review.id`. A stored draft keeps
+`baseFeedbackRevision` and `submittedAt`, and an already submitted past draft is not merged once a
+higher canonical feedbackRevision is rendered. That way localStorage can never overwrite the
+Agent's resolved results back into open/outdated.
 
-피드백 메뉴는 `저장하기`와 `전체 댓글 클리어`만 제공한다. 전체 클리어는 canonical과 local draft의
-현재 댓글 ID를 모두 숨기고, 이후 저장하기로 빈 comments 배열을 가진 feedback 파일을 만든다.
-Static `file://`에서는 저장된 파일을 package의 `feedback.json`으로 교체하고 Canvas를 다시
-업데이트해야 한다.
+The feedback menu offers only `Save feedback` and `Clear all comments`. Clearing all hides every
+current comment ID in both the canonical file and the local draft, so the next save produces a
+feedback file with an empty comments array. On static `file://` you have to replace the package's
+`feedback.json` with the saved file and update the Canvas again.
 
 ## Agent session prompt
 
-새 Agent 세션에서 기존 Canvas package를 편집할 때 다음 prompt를 사용한다.
+Use the following prompt when a new Agent session edits an existing Canvas package.
 
 ```text
 Use the Supercanvas engine at <supercanvas clone path>.
@@ -408,13 +419,13 @@ Task target: <stable-target-id>
 Requested change: <describe the change>
 ```
 
-대상 ID를 아직 모르면 Canvas ID를 target으로 context router를 실행해 Frame과 Action index만
-확인한 뒤 구체 target을 선택한다.
+If you do not know the target ID yet, run the context router with the Canvas ID as the target,
+inspect only the Frame and Action index, then pick a concrete target.
 
 ## Documentation
 
-- `docs/authoring-guide.md` — 새 Canvas package 작성 workflow
-- `docs/roadmap.md` — schema versioning, module boundary, design system 개선 계획
+- `docs/authoring-guide.md` — workflow for authoring a new Canvas package
+- `docs/roadmap.md` — plans for schema versioning, module boundaries and design system work
 
 ## License
 

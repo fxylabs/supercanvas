@@ -4,7 +4,7 @@
   "groups": [
     {
       "id": "group-reading-flow",
-      "title": "독서 흐름",
+      "title": "Reading flow",
       "members": ["frame-reading-home", "frame-reading-detail"]
     }
   ],
@@ -13,7 +13,7 @@
       "id": "conn-home-detail",
       "from": "frame-reading-home",
       "to": "frame-reading-detail",
-      "label": "책 열기",
+      "label": "Open book",
       "route": {
         "type": "orthogonal",
         "from": { "type": "action", "id": "action-open-book", "port": "right" },
@@ -25,7 +25,7 @@
       "id": "conn-detail-home",
       "from": "frame-reading-detail",
       "to": "frame-reading-home",
-      "label": "목록으로",
+      "label": "Back to list",
       "kind": "branch",
       "route": {
         "type": "orthogonal",
