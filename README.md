@@ -27,9 +27,14 @@ Agent renders a visual artifact
 ```sh
 git clone https://github.com/fxylabs/supercanvas.git
 cd supercanvas
-node update.mjs examples/reading-list
-open examples/reading-list/dist/canvas.html
+npm link                      # 전역 supercanvas 커맨드 설치
+supercanvas update examples/reading-list
+supercanvas view examples/reading-list
 ```
+
+`supercanvas new <dir>`로 새 package를 스캐폴드하고, `add`로 기존 package를 머신 레지스트리
+(`~/.supercanvas/registry.json`)에 등록하면 이후 모든 커맨드에서 경로 대신 slug를 쓸 수 있다.
+전체 커맨드는 `supercanvas help`, 설계는 `docs/cli-design.md`를 본다.
 
 Output은 CSS, runtime과 JSON snapshot을 내장한 standalone HTML이므로 `file://`로 열 수 있다.
 Generated output은 Agent input이 아니다.

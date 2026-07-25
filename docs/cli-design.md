@@ -21,6 +21,7 @@ supercanvas render [target]                              render만
 supercanvas verify [target]                              검증만
 supercanvas view [target]                                dist/canvas.html을 브라우저로 연다
 supercanvas list                                         등록된 canvas 목록과 schemaVersion, 최근 render 상태
+supercanvas remove <slug>                                레지스트리에서 제거 (package 파일은 유지)
 supercanvas context --target <id> [target]               agent용 최소 source 해석 (현 context.mjs)
 supercanvas migrate [target]                             schemaVersion 순차 업그레이드
 ```
