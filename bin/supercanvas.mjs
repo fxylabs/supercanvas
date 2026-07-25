@@ -8,6 +8,8 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
+import { CANVAS_SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS, migrateManifest, migrateSidecar } from "../protocol.mjs";
+
 const engineRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const registryFile = path.join(os.homedir(), ".supercanvas", "registry.json");
@@ -23,6 +25,7 @@ const usage = `usage: supercanvas <command>
   render [target]                              render만 실행
   verify [target]                              검증만 실행
   context --target <id> [target]               stable target ID를 최소 source 집합으로 해석
+  migrate [target]                             schemaVersion을 엔진 최신으로 영구 업그레이드
   help                                         이 도움말 출력
 
 [target]은 canvas package 경로 또는 레지스트리 slug다. 생략하면 cwd에서 위로 올라가며
@@ -109,15 +112,17 @@ async function cmdUpdate(args)
     if (!args.length)
     {
         const packageRoot = await nearestPackage(process.cwd()).catch(() => null);
+        if (packageRoot) await ensureSchemaSupported(packageRoot);
         return run("update.mjs", packageRoot ? [packageRoot] : []);
     }
     const packages = await Promise.all(args.map(resolveTarget));
+    await Promise.all(packages.map(ensureSchemaSupported));
     return run("update.mjs", packages);
 }
 
 async function cmdRender(args)
 {
-    const packageRoot = await resolveTarget(args[0]);
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(args[0]));
     return run("render.mjs", [
         "--in", path.join(packageRoot, "canvas.json"),
         "--out", path.join(packageRoot, "dist/canvas.html"),
@@ -126,7 +131,7 @@ async function cmdRender(args)
 
 async function cmdVerify(args)
 {
-    const packageRoot = await resolveTarget(args[0]);
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(args[0]));
     return run("verify.mjs", [packageRoot]);
 }
 
@@ -140,7 +145,7 @@ async function cmdContext(args)
         else rest.push(args[index]);
     }
     if (!targetId) throw new Error("usage: supercanvas context --target <stable-id> [target]");
-    const packageRoot = await resolveTarget(rest[0]);
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(rest[0]));
     return run("context.mjs", ["--canvas", path.join(packageRoot, "canvas.json"), "--target", targetId]);
 }
 
@@ -159,6 +164,24 @@ async function register(slug, packageRoot)
 async function readManifest(packageRoot)
 {
     return JSON.parse(await readFile(path.join(packageRoot, "canvas.json"), "utf8"));
+}
+
+async function ensureSchemaSupported(packageRoot)
+{
+    const version = (await readManifest(packageRoot)).schemaVersion;
+    if (version > CANVAS_SCHEMA_VERSION)
+    {
+        throw new Error(`package schemaVersion ${version}은 이 엔진(v${CANVAS_SCHEMA_VERSION})보다 새 버전입니다. 엔진을 업데이트한다: ${packageRoot}`);
+    }
+    if (!SUPPORTED_SCHEMA_VERSIONS.has(version))
+    {
+        throw new Error(`지원하지 않는 schemaVersion ${version}입니다: ${packageRoot} (실행: supercanvas migrate)`);
+    }
+    if (version < CANVAS_SCHEMA_VERSION)
+    {
+        process.stderr.write(`schemaVersion ${version} package다. supercanvas migrate로 v${CANVAS_SCHEMA_VERSION} 영구 반영을 권장한다.\n`);
+    }
+    return packageRoot;
 }
 
 async function rewriteCanvasId(dir, oldId, newId)
@@ -209,6 +232,7 @@ async function cmdAdd(args)
         else rest.push(args[index]);
     }
     const packageRoot = rest[0] ? await packageFrom(rest[0]) : await nearestPackage(process.cwd());
+    await ensureSchemaSupported(packageRoot);
     const manifest = await readManifest(packageRoot);
     const finalSlug = slug ? slugify(slug) : slugify(path.basename(packageRoot));
     await register(finalSlug, packageRoot);
@@ -258,9 +282,43 @@ async function cmdRemove(args)
     process.stdout.write(`removed ${slug} (package 파일은 그대로 둔다)\n`);
 }
 
-async function cmdView(args)
+async function cmdMigrate(args)
 {
     const packageRoot = await resolveTarget(args[0]);
+    const manifest = await readManifest(packageRoot);
+    const version = manifest.schemaVersion;
+    if (version > CANVAS_SCHEMA_VERSION)
+    {
+        throw new Error(`package schemaVersion ${version}은 이 엔진(v${CANVAS_SCHEMA_VERSION})보다 새 버전입니다. 엔진을 업데이트한다.`);
+    }
+    if (version === CANVAS_SCHEMA_VERSION)
+    {
+        process.stdout.write(`이미 최신 schemaVersion v${CANVAS_SCHEMA_VERSION}이다: ${packageRoot}\n`);
+        return;
+    }
+    const upgraded = migrateManifest(manifest);
+    await writeFile(path.join(packageRoot, "canvas.json"), `${JSON.stringify(upgraded, null, 2)}\n`);
+    for (const [kind, relative] of Object.entries(upgraded.sources || {}))
+    {
+        await migrateSidecarFile(packageRoot, kind, relative);
+    }
+    process.stdout.write(`migrated v${version} → v${CANVAS_SCHEMA_VERSION}: ${packageRoot}\n`);
+    await cmdUpdate([packageRoot]);
+}
+
+async function migrateSidecarFile(packageRoot, kind, relative)
+{
+    if (!relative) return;
+    const filePath = path.join(packageRoot, relative);
+    const raw = await readFile(filePath, "utf8").catch(() => null);
+    if (raw === null) return;
+    const upgraded = migrateSidecar(JSON.parse(raw), kind);
+    await writeFile(filePath, `${JSON.stringify(upgraded, null, 2)}\n`);
+}
+
+async function cmdView(args)
+{
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(args[0]));
     const output = path.join(packageRoot, "dist/canvas.html");
     if (!await exists(output)) throw new Error(`dist/canvas.html이 없습니다. 먼저 실행: supercanvas update ${args[0] || packageRoot}`);
     const opener = process.platform === "darwin" ? "open" : "xdg-open";
@@ -278,6 +336,7 @@ const commands = {
     render: cmdRender,
     verify: cmdVerify,
     context: cmdContext,
+    migrate: cmdMigrate,
 };
 
 const [command, ...args] = process.argv.slice(2);

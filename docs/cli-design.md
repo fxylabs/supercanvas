@@ -48,6 +48,9 @@ supercanvas migrate [target]                             schemaVersion 순차 �
 - CLI는 모든 커맨드에서 package의 `schemaVersion`을 먼저 확인하고, 엔진 지원 범위 밖이면
   render를 거부하며 `migrate`를 안내한다. 조용한 부분 실패보다 명시적 거부가 낫다.
 - `migrate`는 버전별 순차 변환기(v2→v3→…)로 구현하고, 변환 후 `verify`를 자동 실행한다.
+- 현재 구현: `protocol.mjs`의 `migrateManifest`/`migrateSidecar`(v1→v2)를 manifest와 sources
+  사이드카 파일에 영구 반영한 뒤 `update`(render+verify)를 실행한다. 엔진보다 새 버전이면
+  update/render/verify/context/view/add 전부에서 명시적으로 거부하고, v1이면 경고 후 진행한다.
 - roadmap A 트랙(schema versioning·migration 전략)과 병행한다.
 
 ## 구현 단계
