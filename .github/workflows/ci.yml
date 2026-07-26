@@ -15,4 +15,5 @@ jobs:
           node-version-file: .nvmrc
       - run: node bin/supercanvas.mjs help
       - run: node bin/supercanvas.mjs update --all examples
+      - run: node test/review-roundtrip.mjs
       - run: npm pack --dry-run

@@ -19,6 +19,8 @@ Core parts:
 - `context.mjs` — selective context router that resolves a target ID into the minimum set of source files
 - `verify.mjs` — verifies schema, ID integrity, feedback round-trip and context cost
 - `update.mjs` — renders and verifies a package in one run
+- `serve.mjs` — loopback review server that saves feedback straight into the package
+- `feedback.mjs` — Node-side reading, resolving and summarizing of the feedback file
 - `runtime/` — pan/zoom board, Frame interact, feedback, UI Kit, rules viewer
 - `templates/minimal/` — minimal skeleton for a new Canvas package
 
@@ -36,8 +38,11 @@ Scaffold a new package with `supercanvas new <dir>`, and register an existing pa
 registry (`~/.supercanvas/registry.json`) with `add` so every later command can take a slug instead
 of a path. Run `supercanvas help` for the full command list; see `docs/cli-design.md` for the design.
 
-The output is standalone HTML with CSS, runtime and the JSON snapshot inlined, so it opens over
-`file://`. Generated output is not Agent input.
+The output is standalone HTML with CSS, runtime and the JSON snapshot inlined, so it also opens over
+`file://`. Generated output is not Agent input. `supercanvas view` serves that file over loopback
+instead, which is what lets `Save feedback` write the package's `feedback.json` in one click — a page
+loaded from disk has no origin the browser will let it write from. The server stays up until Ctrl+C
+and takes `--port` and `--no-open`.
 
 Follow `docs/authoring-guide.md` to create a new Canvas package. Write only the data package — never
 copy the engine code.
@@ -373,9 +378,10 @@ shape matter.
 
 In comment mode a click creates a point anchor and a drag inside the Frame creates a region anchor.
 Coordinates and sizes are percentages relative to the Frame, so they survive Canvas pan/zoom and
-Frame repositioning. Existing point and region comment markers show only `open` and `discussion` by
-default in Board Review. `resolved` is excluded from the default view and from the comment count in
-the header, and in Frame Interact every marker is hidden so it cannot block real HTML input.
+Frame repositioning. Point and region markers stay on the canvas through the whole cycle: `open` and
+`discussion` are numbered, and a `resolved` comment keeps a check-marked marker that is left out of
+the header count until the reviewer clears it. In Frame Interact every marker is hidden so it cannot
+block real HTML input.
 
 Feedback runs on a review cycle separate from the Canvas version. `feedbackRevision` increments once
 each time the Agent updates the file. Never conflate Comment workflow status with target revision
@@ -383,28 +389,32 @@ state.
 
 - red `open`: not handled yet
 - yellow `discussion`: the Agent has a question in the thread and needs a user decision
-- `resolved`: records `resolution.summary` and the changed targets; hidden in the default view
+- `resolved`: records `resolution.summary` and the changed targets; keeps a check marker until cleared
 - purple/gray dashed `outdated`: a derived marker, independent of the statuses above, meaning the target revision changed
 
-Once all comments are written, the user produces a portable `feedback.json` with `Save feedback`.
-The Agent reads the file, does the work, then records a new `targetRevision`, `resolution.summary`,
-`changes` and an Agent thread message on each resolved comment. When a decision is needed it flips
-the status to `discussion` and leaves the question in the thread. The Agent's result file increments
-`feedbackRevision`.
+The loop runs in four steps, and nothing in it asks anyone to move a file by hand.
 
-`Save feedback` writes the file in one of two ways. In a browser with the File System Access API
-(Chrome, Edge), `Save to feedback.json` writes straight into the package's `feedback.json`; the file
-is picked once and the handle is remembered per Canvas, so later saves need no dialog and the Agent
-reads the package file with no manual copy step. `Download feedback.json` and `Copy JSON` remain for
-every other browser, and there you still replace the package file yourself and run update again.
+1. The reviewer comments and presses `Save feedback`. On a served canvas that writes the package's
+   `feedback.json` and re-renders it, with no dialog and no download.
+2. The Agent reads the comments with `supercanvas feedback` (add `--json` for the raw envelope) and
+   resolves each target's source with `supercanvas context --target <id>`. To stay in the loop
+   without being prompted, `supercanvas feedback --wait` blocks until the reviewer saves work and
+   then prints it — run it as a background job and its exit is the signal.
+3. After doing the work the Agent closes comments with
+   `supercanvas resolve <comment-id ...> --summary "what changed"`, or asks a question with
+   `supercanvas discuss <comment-id> --message "..."`. Both record the Agent as the author, increment
+   `feedbackRevision` and re-render, so the open page shows `updated` next to the version badge.
+4. The reviewer reloads, opens the check-marked pins to read each change summary, and presses
+   `Clear resolved` once satisfied. Anything they disagree with goes back with `Reopen` or a reply
+   instead.
 
-Each save rotates the review: only `open` and `discussion` comments stay in `comments`, and every
-`resolved` comment moves into `archive` under the review cycle that closed it. A comment ID is in one
-array or the other, never both. The saved markdown numbers the active comments `1, 2, 3` and the
-just-archived ones `R1, R2, R3` in a separate closing section, so a resolved item is reported exactly
-once and never returns on the next save. The runtime filters archived comment IDs out of the review
-list, so a stale browser draft cannot resurrect one, and a save that follows an earlier save in the
-same page session carries the earlier archive forward — saving twice before the next render can never
+Saving and clearing are deliberately separate. A save writes the review exactly as it stands,
+resolved comments included, so an Agent's answer can never disappear before the reviewer has looked
+at it. `Clear resolved` is what rotates the cycle: `resolved` comments move into `archive` under the
+review cycle that closed them, while `open` and `discussion` stay in `comments`. A comment ID is in
+one array or the other, never both. The runtime filters archived comment IDs out of the review list,
+so a stale browser draft cannot resurrect one, and a clear that follows an earlier clear in the same
+page session carries the earlier archive forward — clearing twice before the next render can never
 drop closed history.
 
 An archive entry keeps the review cycle as it stood when the comment was closed, so an ongoing cycle
@@ -416,9 +426,12 @@ The browser draft key combines the Canvas ID and `review.id`. A stored draft kee
 higher canonical feedbackRevision is rendered. That way localStorage can never overwrite the
 Agent's resolved results back into open/outdated.
 
-The feedback menu offers only `Save feedback`, `Clear all comments` and `Canvas info`. Clearing all
-hides every current comment ID in both the canonical file and the local draft, so the next save
-produces a feedback file with an empty comments array. `Canvas info` opens a read-only modal that
+The feedback menu offers only `Save feedback`, `Clear resolved`, `Clear all comments` and
+`Canvas info`. Clearing all drops every current comment ID from both the canonical file and the local
+draft without archiving it, which is the reset for a review that went nowhere; `Clear resolved` is
+the one to use for finished work. On a canvas opened from disk, every menu action falls back to the
+save modal — markdown plus `Download feedback.json` and `Copy JSON` — and you replace the package
+file yourself and run update again. `Canvas info` opens a read-only modal that
 reports which engine version rendered the file, the revision and schema version, the Canvas and
 review cycle, the feedbackRevision, and the Frame and Comment counts.
 
@@ -431,6 +444,8 @@ Use the Supercanvas engine at <supercanvas clone path>.
 The Canvas source package is <package path>.
 Read <supercanvas clone path>/docs/authoring-guide.md before acting.
 Begin from a feedback comment ID or stable target ID and run context.mjs before reading source.
+Read review work with supercanvas feedback, close it with supercanvas resolve, and wait for the
+next round with supercanvas feedback --wait as a background job.
 Preserve Action/Note/revision contracts, orthogonal port routing and the
 Board Review / Frame Interact input boundary. Never edit dist/canvas.html as source.
 Run update.mjs after changes.

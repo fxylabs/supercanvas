@@ -17,6 +17,9 @@
   var reviewCycle = feedbackMeta.review || { id: "review-legacy", status: "active" };
   var feedbackRevision = Number(feedbackMeta.feedbackRevision) || 1;
   var feedbackProtocol = CanvasFeedback;
+  /* Injected by `supercanvas view`. Its presence is what turns Save feedback into a single write
+     into the package's feedback.json — a canvas opened straight from disk has no such endpoint. */
+  var reviewServer = window.__SUPERCANVAS_SERVER__ || null;
   var canvas = qs("#canvas");
   var world = qs("#world");
   var tabs = qs("#frame-tabs");
@@ -1047,24 +1050,28 @@
   function renderPins() {
     qsa(".pin, .comment-region", world).forEach(function (pin) { pin.remove(); });
     var list = loadComments();
+    /* A resolved comment keeps its pin, marked with a check, until the reviewer clears it: that
+       pin is how they find the agent's change summary after a reload. */
     function isReviewTarget(comment) {
-      return comment.status !== "resolved" && comment.target && comment.target.type !== "canvas";
+      return comment.target && comment.target.type !== "canvas";
     }
-    var visible = list.filter(isReviewTarget);
+    var openCount = 0;
     list.forEach(function (comment, index) {
       if (!isReviewTarget(comment)) return;
-      var states = (comment.status === "resolved" ? " resolved" : comment.status === "discussion" ? " discussion" : " open") + (comment.reviewState === "outdated" ? " outdated" : "") + (comment.reviewState === "unbound" ? " unbound" : "");
+      var resolved = comment.status === "resolved";
+      var states = (resolved ? " resolved" : comment.status === "discussion" ? " discussion" : " open") + (comment.reviewState === "outdated" ? " outdated" : "") + (comment.reviewState === "unbound" ? " unbound" : "");
+      var label = resolved ? "✓" : String(++openCount);
       if (comment.target.type === "frame" && comment.target.anchor?.kind === "region") {
-        addRegionComment(comment, String(index + 1), "comment-region" + states, function (region) { openEditPopover(region, comment, index); });
+        addRegionComment(comment, label, "comment-region" + states, function (region) { openEditPopover(region, comment, index); });
       } else {
-        addTargetPin(comment.target, String(index + 1), "pin" + states, function (pin) { openEditPopover(pin, comment, index); });
+        addTargetPin(comment.target, label, "pin" + states, function (pin) { openEditPopover(pin, comment, index); });
       }
     });
     var count = qs("#cmt-count");
-    count.textContent = visible.length ? String(visible.length) : "";
+    count.textContent = openCount ? String(openCount) : "";
     var resolvedCount = list.filter(function (comment) { return comment.status === "resolved"; }).length;
     var unanchoredCount = list.filter(function (comment) { return comment.status !== "resolved" && comment.target?.type === "canvas"; }).length;
-    count.title = visible.length + " comment(s) to review · " + resolvedCount + " resolved hidden" + (unanchoredCount ? " · " + unanchoredCount + " unanchored hidden" : "");
+    count.title = openCount + " comment(s) to review · " + resolvedCount + " resolved, waiting to be cleared" + (unanchoredCount ? " · " + unanchoredCount + " unanchored hidden" : "");
   }
 
   qs("#notes-btn").onclick = function () {
@@ -1373,45 +1380,114 @@
     return canonicalFeedback.filter(function (comment) { return archivedHere.has(comment.id) && !inFile.has(comment.id); });
   }
 
-  qs("#export-btn").onclick = function () {
-    closeFileMenu();
-    var list = loadComments();
-    var resolvedNow = list.filter(function (comment) { return comment.status === "resolved"; });
-    var rotation = feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, list.concat(carriedArchive(draftEnvelope())));
-    var active = rotation.active;
+  function feedbackPayload(comments, archive, archivedIds) {
+    return {
+      comments: comments,
+      archivedIds: archivedIds || [],
+      portable: feedbackProtocol.portable({
+        canvasId: canvasMeta.id,
+        canvasVersion: canvasMeta.version,
+        baseRevision: revision.id,
+        feedbackRevision: feedbackRevision,
+        review: reviewCycle,
+        archive: archive || []
+      }, comments)
+    };
+  }
+
+  /* Saving writes the review as it stands, resolved comments included. Closed comments only leave
+     the file through Clear resolved, so a save never hides an agent's answer before the reviewer
+     has reloaded and looked at it. */
+  function savePayload() {
+    return feedbackPayload(loadComments(), feedbackMeta.archive, []);
+  }
+
+  function clearResolvedPayload() {
+    var rotation = feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, loadComments().concat(carriedArchive(draftEnvelope())));
+    return feedbackPayload(rotation.active, rotation.archive, rotation.archivedIds);
+  }
+
+  function feedbackMarkdown(comments) {
     var lines = ["## Canvas feedback — " + canvasMeta.title + " (" + canvasMeta.version + ")", "Review: " + reviewCycle.id + " · feedback revision " + feedbackRevision];
-    if (!active.length) lines.push("(no open comments)");
-    active.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, String(index + 1))); });
-    if (resolvedNow.length) {
-      lines.push("", "### Resolved — archived with this save, not shown again");
-      resolvedNow.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, "R" + (index + 1))); });
-    }
-    var archivedIds = rotation.archivedIds;
-    var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: rotation.archive }, active);
+    if (!comments.length) lines.push("(no comments)");
+    comments.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, String(index + 1))); });
+    return lines.join("\n");
+  }
+
+  function markSaved(payload) {
+    markSubmitted(payload.comments, payload.archivedIds);
+    renderPins();
+  }
+
+  function postFeedback(portable) {
+    return fetch(reviewServer.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-supercanvas-token": reviewServer.token },
+      body: JSON.stringify(portable)
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (result) {
+        if (!response.ok) throw new Error(result.error || "The review server refused the save.");
+        return result;
+      });
+    });
+  }
+
+  function saveFeedback(payload, message) {
+    if (!reviewServer) return openSaveFallback(payload);
+    postFeedback(payload.portable).then(function (result) {
+      markSaved(payload);
+      toast(result.rendered ? message : message + " · re-render failed, run supercanvas update");
+    }).catch(function (error) {
+      toast("Server save failed: " + error.message);
+      openSaveFallback(payload);
+    });
+  }
+
+  /* Fallback for a canvas opened straight from disk, where nothing may write to the package. */
+  function openSaveFallback(payload) {
+    var markdown = feedbackMarkdown(payload.comments);
     openModal("Save feedback", function (body) {
-      var canSaveDirect = typeof window.showSaveFilePicker === "function";
+      var canPickFile = typeof window.showSaveFilePicker === "function" && location.protocol !== "file:";
       body.innerHTML = '<textarea readonly aria-label="Markdown feedback"></textarea><div class="pop-row">'
-        + (canSaveDirect ? '<button id="save-feedback-file" class="primary" type="button">Save to feedback.json</button>' : "")
+        + (canPickFile ? '<button id="save-feedback-file" class="primary" type="button">Save to feedback.json</button>' : "")
         + '<button id="download-feedback" type="button">Download feedback.json</button><button id="copy-feedback-json" type="button">Copy JSON</button></div>'
-        + '<div class="modal-hint">' + (canSaveDirect
-          ? "Save writes straight into the canvas package's feedback.json (picked once, remembered). The agent reads it and updates status, thread, resolution and feedbackRevision."
-          : "After saving, the agent reads this file and updates status, thread, resolution and feedbackRevision.") + "</div>";
-      qs("textarea", body).value = lines.join("\n");
-      if (canSaveDirect) {
+        + '<div class="modal-hint">Run supercanvas view for one-click saving — it serves this canvas and writes the package\'s feedback.json for you. Until then, put this file in the canvas package so the agent can read it.</div>';
+      qs("textarea", body).value = markdown;
+      if (canPickFile) {
         qs("#save-feedback-file").onclick = function () {
-          saveFeedbackToFile(portable).then(function (saved) {
+          saveFeedbackToFile(payload.portable).then(function (saved) {
             if (!saved) { toast("Save cancelled · nothing was written."); return; }
-            markSubmitted(active, archivedIds); renderPins(); closeModal();
+            markSaved(payload); closeModal();
             toast("feedback.json saved · the agent can read it now.");
           }).catch(function () { toast("Direct save failed · use Download feedback.json instead."); });
         };
       }
       qs("#download-feedback").onclick = function () {
-        downloadJson(portable, "feedback.json"); markSubmitted(active, archivedIds); renderPins(); toast("Feedback saved · waiting for the agent.");
+        downloadJson(payload.portable, "feedback.json"); markSaved(payload); toast("Feedback saved · waiting for the agent.");
       };
-      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(portable, null, 2), "Feedback JSON copied"); markSubmitted(active, archivedIds); renderPins(); };
+      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(payload.portable, null, 2), "Feedback JSON copied"); markSaved(payload); };
+      copyText(markdown, "Markdown feedback copied");
     });
-    copyText(lines.join("\n"), "Markdown feedback copied");
+  }
+
+  qs("#export-btn").onclick = function () {
+    closeFileMenu();
+    var payload = savePayload();
+    saveFeedback(payload, "Saved to feedback.json · " + payload.comments.length + " comment(s) for the agent");
+  };
+
+  qs("#clear-resolved-comments").onclick = function () {
+    closeFileMenu();
+    var resolved = loadComments().filter(function (comment) { return comment.status === "resolved"; });
+    if (!resolved.length) { toast("No resolved comments to clear."); return; }
+    openModal("Clear resolved comments", function (body) {
+      body.innerHTML = '<p class="modal-copy">Archives ' + resolved.length + ' resolved comment(s) into this review cycle. They leave the canvas but stay in the file\'s history, so reload first if you still want to check what changed.</p>'
+        + '<div class="pop-row"><button id="confirm-clear-resolved" class="primary" type="button">Clear ' + resolved.length + ' resolved</button></div>';
+      qs("#confirm-clear-resolved").onclick = function () {
+        closeModal();
+        saveFeedback(clearResolvedPayload(), resolved.length + " resolved comment(s) archived");
+      };
+    });
   };
 
   qs("#clear-all-comments").onclick = function () {
@@ -1419,14 +1495,15 @@
     if (reviewCycle.status === "active") localStorage.removeItem(completedKey);
     var list = loadComments();
     openModal("Clear all comments", function (body) {
-      body.innerHTML = '<p class="modal-copy">Removes all ' + list.length + ' comment(s) on this canvas from the view. You can then use Save feedback to write an empty feedback file.</p><div class="pop-row"><button id="confirm-clear-comments" type="button">Clear all comments</button></div>';
+      body.innerHTML = '<p class="modal-copy">Removes all ' + list.length + ' comment(s) on this canvas, resolved ones included, without archiving them.</p><div class="pop-row"><button id="confirm-clear-comments" type="button">Clear all comments</button></div>';
       qs("#confirm-clear-comments").onclick = function () {
         var previous = draftEnvelope();
         var deleted = new Set(previous.deletedIds || []);
         list.forEach(function (comment) { deleted.add(comment.id); });
         localStorage.removeItem(completedKey);
         persistDraft({ comments: [], deletedIds: Array.from(deleted), archivedIds: previous.archivedIds });
-        closeModal(); renderPins(); toast("All comments cleared. Use Save feedback to apply it.");
+        closeModal(); renderPins();
+        saveFeedback(feedbackPayload([], feedbackMeta.archive, []), "All comments cleared");
       };
     });
   };
@@ -1506,6 +1583,30 @@
   renderPins();
   pz.fit();
   setTimeout(function () { toast("Board: pan/zoom · Run: scroll/hover/click inside a frame · Esc: back to board"); }, 400);
+
+  /* The agent works on the package while this page stays open. Watching the canonical revision
+     turns "reload to see what changed" into something the reviewer is told, not something they
+     have to guess. Their own saves leave the revision alone, so this only fires for agent work. */
+  function watchForAgentUpdates() {
+    var announced = false;
+    setInterval(function () {
+      if (announced) return;
+      fetch(reviewServer.endpoint, { cache: "no-store" })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(function (state) {
+          if (!state || Number(state.feedbackRevision) <= feedbackRevision) return;
+          announced = true;
+          var badge = qs("#ver-badge");
+          badge.textContent = canvasMeta.version + " · updated";
+          badge.title = "The agent changed this canvas. Click to reload.";
+          badge.style.cursor = "pointer";
+          badge.onclick = function () { location.reload(); };
+          toast("The agent updated this canvas · reload to see the changes");
+        })
+        .catch(function () { /* the server went away — the page still works read-only */ });
+    }, 10000);
+  }
+  if (reviewServer) watchForAgentUpdates();
 
   window.__canvas = {
     data: data,

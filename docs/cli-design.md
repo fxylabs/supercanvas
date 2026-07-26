@@ -20,9 +20,13 @@ supercanvas add [path] [--slug s]                        register an existing pa
 supercanvas update [target]                              render + verify (current update.mjs)
 supercanvas render [target]                              render only
 supercanvas verify [target]                              verify only
-supercanvas view [target]                                open dist/canvas.html in the browser
+supercanvas view [target] [--port n] [--no-open]         serve the canvas so Save feedback writes feedback.json
 supercanvas list                                         registered canvases with schemaVersion and last render status
 supercanvas remove <slug>                                remove from the registry (package files stay)
+supercanvas feedback [target] [--json] [--status s]      print the comments waiting for the agent
+supercanvas feedback --wait [--timeout s] [target]       block until the reviewer leaves work, then print it
+supercanvas resolve <comment-id ...> --summary <text>    close comments with the change that answered them
+supercanvas discuss <comment-id> --message <text>        ask the reviewer a question on a comment
 supercanvas context --target <id> [target]               resolve the minimum source for an agent (current context.mjs)
 supercanvas migrate [target]                             step schemaVersion upgrades
 ```

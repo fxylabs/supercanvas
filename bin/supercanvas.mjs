@@ -9,6 +9,8 @@ import path from "node:path";
 import process from "node:process";
 
 import { CANVAS_SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS, migrateManifest, migrateSidecar } from "../protocol.mjs";
+import { activeComments, discussComment, readFeedback, resolveComments, summarizeFeedback, waitForReview, writeFeedback } from "../feedback.mjs";
+import { serveCanvas } from "../serve.mjs";
 
 const engineRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -20,10 +22,14 @@ const usage = `usage: supercanvas <command>
   add [target] [--slug s]                      register an existing package
   list                                         list registered canvases
   remove <slug>                                unregister a canvas (package files are kept)
-  view [target]                                open dist/canvas.html in the browser
+  view [target] [--port n] [--no-open]         serve the canvas for review (Save writes feedback.json)
   update [target ...] [--all [root]]           render + verify (default: nearest package from cwd)
   render [target]                              render only
   verify [target]                              verify only
+  feedback [target] [--json] [--status s]      print the comments waiting for the agent
+  feedback --wait [--timeout s] [target]       block until the reviewer leaves work, then print it
+  resolve <comment-id ...> --summary <text>    close comments with the change that answered them
+  discuss <comment-id> --message <text>        ask the reviewer a question on a comment
   context --target <id> [target]               resolve a stable target ID to a minimal source set
   migrate [target]                             permanently upgrade schemaVersion to the engine latest
   help                                         print this help
@@ -319,12 +325,119 @@ async function migrateSidecarFile(packageRoot, kind, relative)
 
 async function cmdView(args)
 {
-    const packageRoot = await ensureSchemaSupported(await resolveTarget(args[0]));
+    let port = 0;
+    let openBrowser = true;
+    const rest = [];
+    for (let index = 0; index < args.length; index += 1)
+    {
+        if (args[index] === "--port") port = Number(args[index += 1]);
+        else if (args[index] === "--no-open") openBrowser = false;
+        else rest.push(args[index]);
+    }
+    if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("--port must be a port number");
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(rest[0]));
     const output = path.join(packageRoot, "dist/canvas.html");
-    if (!await exists(output)) throw new Error(`dist/canvas.html is missing. Run this first: supercanvas update ${args[0] || packageRoot}`);
-    const opener = process.platform === "darwin" ? "open" : "xdg-open";
-    spawn(opener, [output], { stdio: "ignore", detached: true }).unref();
-    process.stdout.write(`opened ${output}\n`);
+    if (!await exists(output)) throw new Error(`dist/canvas.html is missing. Run this first: supercanvas update ${rest[0] || packageRoot}`);
+    const { url, title } = await serveCanvas(packageRoot, { port });
+    if (openBrowser)
+    {
+        const opener = process.platform === "darwin" ? "open" : "xdg-open";
+        spawn(opener, [url], { stdio: "ignore", detached: true }).unref();
+    }
+    process.stdout.write(`serving ${title} at ${url}\n`
+        + `Save feedback in the canvas writes straight into ${packageRoot}/feedback.json and re-renders.\n`
+        + "Press Ctrl+C to stop.\n");
+}
+
+function optionArgs(args, flags)
+{
+    const values = {};
+    const rest = [];
+    for (let index = 0; index < args.length; index += 1)
+    {
+        const flag = args[index];
+        if (!flags.includes(flag))
+        {
+            if (flag.startsWith("--")) throw new Error(`unknown option: ${flag}`);
+            rest.push(flag);
+            continue;
+        }
+        const value = args[index += 1];
+        if (value == null) throw new Error(`${flag} needs a value`);
+        if (values[flag]) values[flag].push(value);
+        else values[flag] = [value];
+    }
+    return { values, rest };
+}
+
+async function cmdFeedback(args)
+{
+    const asJson = args.includes("--json");
+    const wait = args.includes("--wait");
+    const { values, rest } = optionArgs(args.filter((arg) => arg !== "--json" && arg !== "--wait"), ["--status", "--target", "--timeout"]);
+    const status = values["--status"]?.[0] || null;
+    if (status && !["open", "discussion", "resolved"].includes(status)) throw new Error("--status must be open, discussion or resolved");
+    if (wait && status) throw new Error("--wait always reports the comments that need work, so it takes no --status");
+    const timeout = Number(values["--timeout"]?.[0] || 0);
+    if (!Number.isFinite(timeout) || timeout < 0) throw new Error("--timeout must be a number of seconds");
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(values["--target"]?.[0] || rest[0]));
+    if (wait)
+    {
+        const found = await waitForReview(packageRoot, { timeoutMs: timeout * 1000 });
+        if (!found)
+        {
+            process.stdout.write(`no new feedback within ${timeout}s\n`);
+            return;
+        }
+        const view = { ...found.data, comments: found.comments };
+        process.stdout.write(asJson ? `${JSON.stringify(view, null, 2)}\n` : summarizeFeedback(view, found.manifest.canvas?.title || found.manifest.canvas.id));
+        return;
+    }
+    const { manifest, data } = await readFeedback(packageRoot);
+    const filtered = status ? activeComments(data).filter((comment) => comment.status === status) : activeComments(data);
+    const view = { ...data, comments: filtered };
+    process.stdout.write(asJson ? `${JSON.stringify(view, null, 2)}\n` : summarizeFeedback(view, manifest.canvas?.title || manifest.canvas.id));
+}
+
+/* Closing a comment changes what the canvas shows, so the render has to follow in the same
+   command — otherwise the reviewer reloads and still sees the comment as open. */
+async function writeAndRender(packageRoot, file, data, message)
+{
+    await writeFeedback(file, data);
+    process.stdout.write(`${message}\n`);
+    await cmdUpdate([packageRoot]);
+}
+
+async function cmdResolve(args)
+{
+    const { values, rest } = optionArgs(args, ["--summary", "--change", "--label", "--target"]);
+    const summary = values["--summary"]?.[0];
+    if (!rest.length || !summary) throw new Error('usage: supercanvas resolve <comment-id ...> --summary "what changed" [--change "detail"] [--target t]');
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(values["--target"]?.[0]));
+    const { file, data } = await readFeedback(packageRoot);
+    const next = resolveComments(data, rest, {
+        summary,
+        changes: values["--change"] || [],
+        label: values["--label"]?.[0] || "Agent",
+        resolvedAt: new Date().toISOString()
+    });
+    await writeAndRender(packageRoot, file, next, `resolved ${rest.length} comment(s) · feedback revision ${next.feedbackRevision}`);
+}
+
+async function cmdDiscuss(args)
+{
+    const { values, rest } = optionArgs(args, ["--message", "--label", "--target"]);
+    const message = values["--message"]?.[0];
+    if (rest.length !== 1 || !message) throw new Error('usage: supercanvas discuss <comment-id> --message "your question" [--target t]');
+    const packageRoot = await ensureSchemaSupported(await resolveTarget(values["--target"]?.[0]));
+    const { file, data } = await readFeedback(packageRoot);
+    const next = discussComment(data, rest[0], {
+        id: `message-${Date.now().toString(36)}`,
+        text: message,
+        label: values["--label"]?.[0] || "Agent",
+        createdAt: new Date().toISOString()
+    });
+    await writeAndRender(packageRoot, file, next, `asked on ${rest[0]} · feedback revision ${next.feedbackRevision}`);
 }
 
 async function cmdVersion()
@@ -342,6 +455,9 @@ const commands = {
     update: cmdUpdate,
     render: cmdRender,
     verify: cmdVerify,
+    feedback: cmdFeedback,
+    resolve: cmdResolve,
+    discuss: cmdDiscuss,
     context: cmdContext,
     migrate: cmdMigrate,
     "--version": cmdVersion,

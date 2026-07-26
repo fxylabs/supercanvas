@@ -51,8 +51,9 @@ enforces a four-stage order with approval gates between the stages. There are tw
 - Build screen frames using only the locked tokens and active rules. If a new color or typeface is
   needed, do not add it ad hoc — propose adding the token first.
 - Make every screen pass render+verify via `supercanvas update`.
-- Feedback follows the supercanvas review loop: comment target ID →
-  `supercanvas context --target <id>` → edit only the returned minimum source → update → review again.
+- Feedback follows the supercanvas review loop: `supercanvas feedback` → for each comment,
+  `supercanvas context --target <id>` → edit only the returned minimum source →
+  `supercanvas resolve <comment-id> --summary "..."` → the user reloads, checks the change and clears it.
 
 ## Done criteria
 
