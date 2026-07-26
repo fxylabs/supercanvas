@@ -146,6 +146,10 @@ const laterComment = { ...openComment, id: "comment-verify-later", text: "added 
 const secondSave = protocol.rotate(firstSave.archive, snapshot.feedback.review, [openComment, laterComment, closedComment]);
 assert.equal(JSON.stringify(protocol.archivedCommentIds(secondSave.archive)), JSON.stringify([closedComment.id]), "a second save must preserve earlier archived comments exactly once");
 assert.equal(secondSave.active.length, 2, "a second save must keep every unresolved comment active");
+const doubledSave = protocol.rotate([], snapshot.feedback.review, [closedComment, openComment, closedComment]);
+assert.equal(JSON.stringify(doubledSave.archivedIds), JSON.stringify([closedComment.id]), "rotation must archive a comment handed in twice exactly once");
+assert.equal(JSON.stringify(protocol.archivedCommentIds(doubledSave.archive)), JSON.stringify([closedComment.id]), "a duplicated input comment must not land in the archive bucket twice");
+protocol.validateEnvelope(JSON.parse(JSON.stringify(protocol.portable({ canvasId: snapshot.canvas.id, canvasVersion: snapshot.canvas.version, baseRevision: snapshot.revision.id, feedbackRevision: snapshot.feedback.feedbackRevision, review: snapshot.feedback.review, archive: doubledSave.archive }, doubledSave.active))), snapshot.canvas.id);
 const rotatedEnvelope = protocol.portable({ canvasId: snapshot.canvas.id, canvasVersion: snapshot.canvas.version, baseRevision: snapshot.revision.id, feedbackRevision: snapshot.feedback.feedbackRevision, review: snapshot.feedback.review, archive: secondSave.archive }, secondSave.active);
 protocol.validateEnvelope(JSON.parse(JSON.stringify(rotatedEnvelope)), snapshot.canvas.id);
 assert.throws(

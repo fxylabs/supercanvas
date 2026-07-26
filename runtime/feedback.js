@@ -21,12 +21,16 @@
   }
 
   /* Moves every resolved comment into the archive bucket of the review cycle that closed it.
-     Comments already archived by an earlier save may be passed in again; the bucket is rebuilt
-     by ID so a re-save can never drop or duplicate closed history. */
+     Comments already archived by an earlier save may be passed in again — twice, even, when a
+     caller merges a reconciled list with its own carry-over — so the input is deduplicated by ID
+     and the bucket is rebuilt by ID. A re-save can never drop or duplicate closed history. */
   function rotate(existingArchive, review, comments) {
     var archive = (existingArchive || []).map(function (entry) { return { review: entry.review, comments: (entry.comments || []).slice() }; });
-    var closing = (comments || []).filter(function (comment) { return comment.status === "resolved"; });
-    var active = (comments || []).filter(function (comment) { return comment.status !== "resolved"; });
+    var unique = new Map();
+    (comments || []).forEach(function (comment) { if (!unique.has(comment.id)) unique.set(comment.id, comment); });
+    var incoming = Array.from(unique.values());
+    var closing = incoming.filter(function (comment) { return comment.status === "resolved"; });
+    var active = incoming.filter(function (comment) { return comment.status !== "resolved"; });
     if (closing.length) {
       var closingIds = closing.map(function (comment) { return comment.id; });
       var bucket = archive.filter(function (entry) { return entry.review && review && entry.review.id === review.id; })[0];
