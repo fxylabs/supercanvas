@@ -200,8 +200,17 @@ default view shows only `open` and `discussion` pins and hides `resolved` from t
 header count; a comment listed in `archive` is filtered out of the review list entirely. The user's
 next `Save feedback` is what moves a `resolved` comment from `comments` into `archive`, so the Agent
 leaves resolved entries in `comments` with their resolution intact and lets the save rotate them.
+A comment ID appears either in `comments` or in `archive`, never in both.
+
+Each `archive` entry records the review cycle a comment was closed in, and the save copies that cycle
+as it stood at the time — an ongoing cycle is archived with `status: active`. Marking it
+`completed` is the Agent's job at exactly one moment: when it opens a new review cycle, it sets every
+archive bucket whose `review.id` differs from the new active cycle to `completed`. Never edit an
+archived comment itself.
+
 If the user explicitly asks to empty the current review, run `Clear all comments`, save, and reflect
-that feedback file's empty comments array in the canonical source.
+that feedback file's empty comments array in the canonical source. Clearing removes comments from the
+review; it does not touch `archive`.
 
 When the user explicitly asks for a common rule in conversation, the Agent adds an `active` rule with
 provenance and verification to `_shared/rules.json` and increments `rulesRevision` once. If the Agent

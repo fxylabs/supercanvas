@@ -399,10 +399,17 @@ reads the package file with no manual copy step. `Download feedback.json` and `C
 every other browser, and there you still replace the package file yourself and run update again.
 
 Each save rotates the review: only `open` and `discussion` comments stay in `comments`, and every
-`resolved` comment moves into `archive` under its review cycle. The saved markdown lists the active
-comments first and the just-archived ones in a separate closing section, so a resolved item is
-reported exactly once and never returns on the next save. The runtime also filters archived comment
-IDs out of the review list, so a stale browser draft cannot resurrect one.
+`resolved` comment moves into `archive` under the review cycle that closed it. A comment ID is in one
+array or the other, never both. The saved markdown numbers the active comments `1, 2, 3` and the
+just-archived ones `R1, R2, R3` in a separate closing section, so a resolved item is reported exactly
+once and never returns on the next save. The runtime filters archived comment IDs out of the review
+list, so a stale browser draft cannot resurrect one, and a save that follows an earlier save in the
+same page session carries the earlier archive forward — saving twice before the next render can never
+drop closed history.
+
+An archive entry keeps the review cycle as it stood when the comment was closed, so an ongoing cycle
+is archived with `status: active`. The Agent flips those buckets to `completed` when it opens a new
+review cycle.
 
 The browser draft key combines the Canvas ID and `review.id`. A stored draft keeps
 `baseFeedbackRevision` and `submittedAt`, and an already submitted past draft is not merged once a

@@ -867,35 +867,47 @@
     if (target) { event.preventDefault(); toast(target.dataset.toast); }
   });
 
+  function emptyDraft() {
+    return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [], archivedIds: [] };
+  }
+
   function draftEnvelope() {
     try {
       var stored = localStorage.getItem(storeKey);
-      if (!stored) return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [] };
+      if (!stored) return emptyDraft();
       var parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return { reviewId: null, baseRevision: null, baseFeedbackRevision: 0, comments: parsed, deletedIds: [] };
-      return { reviewId: parsed.reviewId || null, baseRevision: parsed.baseRevision || null, baseFeedbackRevision: Number(parsed.baseFeedbackRevision) || 0, submittedAt: parsed.submittedAt || null, comments: parsed.comments || [], deletedIds: parsed.deletedIds || [] };
-    } catch (error) { return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [] }; }
+      if (Array.isArray(parsed)) return { reviewId: null, baseRevision: null, baseFeedbackRevision: 0, comments: parsed, deletedIds: [], archivedIds: [] };
+      return {
+        reviewId: parsed.reviewId || null,
+        baseRevision: parsed.baseRevision || null,
+        baseFeedbackRevision: Number(parsed.baseFeedbackRevision) || 0,
+        submittedAt: parsed.submittedAt || null,
+        comments: parsed.comments || [],
+        deletedIds: parsed.deletedIds || [],
+        archivedIds: parsed.archivedIds || []
+      };
+    } catch (error) { return emptyDraft(); }
   }
 
   function loadComments() {
     if (localStorage.getItem(completedKey) === "1" || reviewCycle.status === "completed") return [];
-    var draft = draftEnvelope();
-    return feedbackProtocol.reconcile(canonicalFeedback, draft, revision.targetHashes || {}, {
+    return feedbackProtocol.reconcile(canonicalFeedback, draftEnvelope(), revision.targetHashes || {}, {
       review: reviewCycle,
       feedbackRevision: feedbackRevision,
       archivedIds: feedbackProtocol.archivedCommentIds(feedbackMeta.archive)
     });
   }
 
-  function persistDraft(list, deletedIds, submittedAt, baseFeedbackRevision) {
+  function persistDraft(state) {
     localStorage.setItem(storeKey, JSON.stringify({
       reviewId: reviewCycle.id,
       baseRevision: revision.id,
-      baseFeedbackRevision: baseFeedbackRevision == null ? feedbackRevision : baseFeedbackRevision,
+      baseFeedbackRevision: feedbackRevision,
       updatedAt: new Date().toISOString(),
-      submittedAt: submittedAt || null,
-      comments: list.map(feedbackProtocol.stripDerived),
-      deletedIds: deletedIds || []
+      submittedAt: state.submittedAt || null,
+      comments: (state.comments || []).map(feedbackProtocol.stripDerived),
+      deletedIds: state.deletedIds || [],
+      archivedIds: state.archivedIds || []
     }));
   }
 
@@ -907,14 +919,20 @@
       localStorage.removeItem(completedKey);
       toast("New comment reopened the current review.");
     }
-    persistDraft(list, Array.from(deleted), null, feedbackRevision);
+    persistDraft({ comments: list, deletedIds: Array.from(deleted), archivedIds: previous.archivedIds });
     renderPins();
   }
 
   function markSubmitted(list, archivedIds) {
-    var deleted = new Set(draftEnvelope().deletedIds || []);
-    (archivedIds || []).forEach(function (id) { deleted.add(id); });
-    persistDraft(list, Array.from(deleted), new Date().toISOString(), feedbackRevision);
+    var previous = draftEnvelope();
+    var archived = new Set(previous.archivedIds || []);
+    (archivedIds || []).forEach(function (id) { archived.add(id); });
+    persistDraft({
+      comments: list,
+      deletedIds: previous.deletedIds,
+      archivedIds: Array.from(archived),
+      submittedAt: new Date().toISOString()
+    });
   }
 
   function setCommentMarkerContent(element, label) {
@@ -1305,7 +1323,10 @@
           suggestedName: "feedback.json",
           types: [{ description: "Canvas feedback", accept: { "application/json": [".json"] } }]
         });
-      } catch (error) { return false; }
+      } catch (error) {
+        if (error && error.name === "AbortError") return false;
+        throw error;
+      }
       storeFileHandle(handle);
     }
     try {
@@ -1337,27 +1358,30 @@
     return lines;
   }
 
+  /* Comments archived by an earlier save in this page session are still in the rendered canonical
+     snapshot. Carry them back into the rotation so a second save before the next render cannot
+     write a file that has dropped them from both comments and archive. */
+  function carriedArchive(draft) {
+    var archivedHere = new Set(draft.archivedIds || []);
+    var inFile = new Set(feedbackProtocol.archivedCommentIds(feedbackMeta.archive));
+    return canonicalFeedback.filter(function (comment) { return archivedHere.has(comment.id) && !inFile.has(comment.id); });
+  }
+
   qs("#export-btn").onclick = function () {
     closeFileMenu();
     var list = loadComments();
-    var active = list.filter(function (comment) { return comment.status !== "resolved"; });
     var resolvedNow = list.filter(function (comment) { return comment.status === "resolved"; });
+    var rotation = feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, list.concat(carriedArchive(draftEnvelope())));
+    var active = rotation.active;
     var lines = ["## Canvas feedback — " + canvasMeta.title + " (" + canvasMeta.version + ")", "Review: " + reviewCycle.id + " · feedback revision " + feedbackRevision];
     if (!active.length) lines.push("(no open comments)");
     active.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, String(index + 1))); });
     if (resolvedNow.length) {
       lines.push("", "### Resolved — archived with this save, not shown again");
-      resolvedNow.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, String(index + 1))); });
+      resolvedNow.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, "R" + (index + 1))); });
     }
-    var archive = (feedbackMeta.archive || []).map(function (entry) { return { review: entry.review, comments: (entry.comments || []).slice() }; });
-    var archivedIds = resolvedNow.map(function (comment) { return comment.id; });
-    if (resolvedNow.length) {
-      var bucket = archive.filter(function (entry) { return entry.review && entry.review.id === reviewCycle.id; })[0];
-      if (!bucket) { bucket = { review: reviewCycle, comments: [] }; archive.push(bucket); }
-      bucket.comments = bucket.comments.filter(function (comment) { return archivedIds.indexOf(comment.id) === -1; });
-      resolvedNow.forEach(function (comment) { bucket.comments.push(feedbackProtocol.stripDerived(comment)); });
-    }
-    var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: archive }, active);
+    var archivedIds = rotation.archivedIds;
+    var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: rotation.archive }, active);
     openModal("Save feedback", function (body) {
       var canSaveDirect = typeof window.showSaveFilePicker === "function";
       body.innerHTML = '<textarea readonly aria-label="Markdown feedback"></textarea><div class="pop-row">'
@@ -1370,10 +1394,10 @@
       if (canSaveDirect) {
         qs("#save-feedback-file").onclick = function () {
           saveFeedbackToFile(portable).then(function (saved) {
-            if (!saved) return;
+            if (!saved) { toast("Save cancelled · nothing was written."); return; }
             markSubmitted(active, archivedIds); renderPins(); closeModal();
             toast("feedback.json saved · the agent can read it now.");
-          }).catch(function () { toast("Direct save failed · use Download instead."); });
+          }).catch(function () { toast("Direct save failed · use Download feedback.json instead."); });
         };
       }
       qs("#download-feedback").onclick = function () {
@@ -1395,7 +1419,7 @@
         var deleted = new Set(previous.deletedIds || []);
         list.forEach(function (comment) { deleted.add(comment.id); });
         localStorage.removeItem(completedKey);
-        persistDraft([], Array.from(deleted), null, feedbackRevision);
+        persistDraft({ comments: [], deletedIds: Array.from(deleted), archivedIds: previous.archivedIds });
         closeModal(); renderPins(); toast("All comments cleared. Use Save feedback to apply it.");
       };
     });

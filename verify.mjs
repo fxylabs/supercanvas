@@ -80,6 +80,7 @@ assert.ok(boardSource.includes('comment.status !== "resolved"'), "resolved comme
 assert.ok(boardSource.includes("archivedCommentIds(feedbackMeta.archive)"), "archived comments must be filtered out of the review list");
 assert.ok(boardSource.includes("window.showSaveFilePicker"), "Save feedback must offer a direct write into feedback.json");
 assert.ok(boardSource.includes("markSubmitted(active, archivedIds)"), "saving must archive resolved comments instead of re-emitting them");
+assert.ok(boardSource.includes("feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, list.concat(carriedArchive(draftEnvelope())))"), "saving must rotate through the protocol and carry comments archived by an earlier save");
 assert.ok(boardSource.includes('comment.target.type !== "canvas"'), "unanchored legacy Canvas comments must not render pins");
 assert.ok(boardSource.includes('if (!isReviewTarget(comment)) return;'), "only unresolved anchored comments may render pins");
 assert.equal(/openNewPopover\(\{\s*type:\s*["']canvas["']/.test(boardSource), false, "empty Canvas clicks must not create unanchored comments");
@@ -133,6 +134,25 @@ const afterArchive = protocol.reconcile(canonicalAfterAgent, { comments: [{ ...i
   archivedIds: protocol.archivedCommentIds([archivedResolved])
 });
 assert.equal(afterArchive.length, 0, "an archived resolved comment must never reappear in the review list");
+const draftArchived = protocol.reconcile(canonicalAfterAgent, { comments: [imported[0]], archivedIds: [imported[0].id] }, snapshot.revision.targetHashes, snapshot.feedback);
+assert.equal(draftArchived.length, 0, "a comment archived by an earlier save in this session must stay out of the review list");
+
+const closedComment = { ...imported[0], status: "resolved" };
+const openComment = { ...imported[0], id: "comment-verify-open", status: "open", text: "still open" };
+const firstSave = protocol.rotate([], snapshot.feedback.review, [closedComment, openComment]);
+assert.equal(JSON.stringify(firstSave.active.map((comment) => comment.id)), JSON.stringify([openComment.id]), "rotation must keep only unresolved comments active");
+assert.equal(JSON.stringify(protocol.archivedCommentIds(firstSave.archive)), JSON.stringify([closedComment.id]), "rotation must archive every resolved comment");
+const laterComment = { ...openComment, id: "comment-verify-later", text: "added after the first save" };
+const secondSave = protocol.rotate(firstSave.archive, snapshot.feedback.review, [openComment, laterComment, closedComment]);
+assert.equal(JSON.stringify(protocol.archivedCommentIds(secondSave.archive)), JSON.stringify([closedComment.id]), "a second save must preserve earlier archived comments exactly once");
+assert.equal(secondSave.active.length, 2, "a second save must keep every unresolved comment active");
+const rotatedEnvelope = protocol.portable({ canvasId: snapshot.canvas.id, canvasVersion: snapshot.canvas.version, baseRevision: snapshot.revision.id, feedbackRevision: snapshot.feedback.feedbackRevision, review: snapshot.feedback.review, archive: secondSave.archive }, secondSave.active);
+protocol.validateEnvelope(JSON.parse(JSON.stringify(rotatedEnvelope)), snapshot.canvas.id);
+assert.throws(
+  () => protocol.validateEnvelope({ ...rotatedEnvelope, comments: [closedComment], archive: secondSave.archive }, snapshot.canvas.id),
+  /active and archived at the same time/,
+  "a comment must not be active and archived at the same time"
+);
 const discussionComment = snapshot.feedback.comments.find((comment) => comment.status === "discussion");
 if (discussionComment) {
   const discussionEnvelope = protocol.portable({ canvasId: snapshot.canvas.id, canvasVersion: snapshot.canvas.version, baseRevision: snapshot.revision.id, feedbackRevision: snapshot.feedback.feedbackRevision, review: snapshot.feedback.review, archive: snapshot.feedback.archive }, [discussionComment]);

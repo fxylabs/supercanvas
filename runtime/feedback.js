@@ -20,6 +20,26 @@
     return ids;
   }
 
+  /* Moves every resolved comment into the archive bucket of the review cycle that closed it.
+     Comments already archived by an earlier save may be passed in again; the bucket is rebuilt
+     by ID so a re-save can never drop or duplicate closed history. */
+  function rotate(existingArchive, review, comments) {
+    var archive = (existingArchive || []).map(function (entry) { return { review: entry.review, comments: (entry.comments || []).slice() }; });
+    var closing = (comments || []).filter(function (comment) { return comment.status === "resolved"; });
+    var active = (comments || []).filter(function (comment) { return comment.status !== "resolved"; });
+    if (closing.length) {
+      var closingIds = closing.map(function (comment) { return comment.id; });
+      var bucket = archive.filter(function (entry) { return entry.review && review && entry.review.id === review.id; })[0];
+      if (!bucket) { bucket = { review: review, comments: [] }; archive.push(bucket); }
+      archive.forEach(function (entry) {
+        entry.comments = entry.comments.filter(function (comment) { return entry === bucket || closingIds.indexOf(comment.id) === -1; });
+      });
+      bucket.comments = bucket.comments.filter(function (comment) { return closingIds.indexOf(comment.id) === -1; });
+      closing.forEach(function (comment) { bucket.comments.push(stripDerived(comment)); });
+    }
+    return { active: active, archive: archive, archivedIds: closing.map(function (comment) { return comment.id; }) };
+  }
+
   function reconcile(canonical, draft, targetHashes, meta) {
     var envelope = draft || {};
     var review = meta && meta.review;
@@ -27,6 +47,7 @@
     if (envelope.submittedAt && Number(envelope.baseFeedbackRevision || 0) < Number(meta && meta.feedbackRevision || 0)) envelope = {};
     var deleted = new Set(envelope.deletedIds || []);
     var archived = new Set((meta && meta.archivedIds) || []);
+    (envelope.archivedIds || []).forEach(function (id) { archived.add(id); });
     var merged = new Map();
     (canonical || []).forEach(function (comment) { if (!deleted.has(comment.id) && !archived.has(comment.id)) merged.set(comment.id, comment); });
     (envelope.comments || []).forEach(function (comment) { if (!deleted.has(comment.id) && !archived.has(comment.id)) merged.set(comment.id, comment); });
@@ -84,6 +105,12 @@
     if (payload.feedbackRevision != null && (!Number.isInteger(payload.feedbackRevision) || payload.feedbackRevision < 1)) throw new Error("feedbackRevision must be an integer of 1 or more.");
     var ids = new Set();
     payload.comments.forEach(function (comment) { validateComment(comment, ids); });
+    var archivedIds = new Set();
+    archivedCommentIds(payload.archive).forEach(function (id) {
+      if (ids.has(id)) throw new Error("A comment cannot be active and archived at the same time.");
+      if (archivedIds.has(id)) throw new Error("Duplicate archived comment ID.");
+      archivedIds.add(id);
+    });
     return Object.assign({}, payload, { comments: payload.comments.map(stripDerived) });
   }
 
@@ -108,6 +135,7 @@
     archivedCommentIds: archivedCommentIds,
     portable: portable,
     reconcile: reconcile,
+    rotate: rotate,
     reviewState: reviewState,
     stripDerived: stripDerived,
     validateEnvelope: validateEnvelope,
