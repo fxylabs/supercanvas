@@ -27,6 +27,7 @@ const usage = `usage: supercanvas <command>
   context --target <id> [target]               resolve a stable target ID to a minimal source set
   migrate [target]                             permanently upgrade schemaVersion to the engine latest
   help                                         print this help
+  --version, -v                                print the engine version
 
 [target] is a canvas package path or a registry slug. When omitted, walks up from cwd
 to find canvas.json.
@@ -326,6 +327,12 @@ async function cmdView(args)
     process.stdout.write(`opened ${output}\n`);
 }
 
+async function cmdVersion()
+{
+    const enginePackage = JSON.parse(await readFile(path.join(engineRoot, "package.json"), "utf8"));
+    process.stdout.write(`${enginePackage.version}\n`);
+}
+
 const commands = {
     new: cmdNew,
     add: cmdAdd,
@@ -337,6 +344,8 @@ const commands = {
     verify: cmdVerify,
     context: cmdContext,
     migrate: cmdMigrate,
+    "--version": cmdVersion,
+    "-v": cmdVersion,
 };
 
 const [command, ...args] = process.argv.slice(2);
@@ -345,7 +354,9 @@ if (!command || command === "help" || command === "--help")
 {
     process.stdout.write(usage);
 }
-else if (!commands[command])
+// hasOwn, not a plain lookup — `commands` inherits toString/constructor, and those would
+// otherwise dispatch as valid commands and exit 0 on what is really a typo
+else if (!Object.hasOwn(commands, command))
 {
     process.stderr.write(`unknown command: ${command}\n\n${usage}`);
     process.exitCode = 1;
