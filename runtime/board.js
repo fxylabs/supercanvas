@@ -1426,7 +1426,11 @@
       body: JSON.stringify(portable)
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (result) {
-        if (!response.ok) throw new Error(result.error || "The review server refused the save.");
+        if (!response.ok) {
+          var refusal = new Error(result.error || "The review server refused the save.");
+          refusal.status = response.status;
+          throw refusal;
+        }
         return result;
       });
     });
@@ -1438,6 +1442,9 @@
       markSaved(payload);
       toast(result.rendered ? message : message + " · re-render failed, run supercanvas update");
     }).catch(function (error) {
+      /* A stale save is the one refusal the download fallback must not swallow: the draft has to
+         survive unmarked so the reviewer can reload and save the same comments onto the newer file. */
+      if (error.status === 409) { toast("The agent changed this canvas · reload before saving again"); return; }
       toast("Server save failed: " + error.message);
       openSaveFallback(payload);
     });

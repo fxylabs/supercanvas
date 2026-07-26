@@ -408,6 +408,10 @@ The loop runs in four steps, and nothing in it asks anyone to move a file by han
    `Clear resolved` once satisfied. Anything they disagree with goes back with `Reopen` or a reply
    instead.
 
+A save carries the `feedbackRevision` the page was loaded from, so a page left open while the Agent
+resolved something is refused with `409` instead of writing its stale review over the Agent's answer;
+the reviewer is told to reload, and the browser draft is kept so no typed comment is lost.
+
 Saving and clearing are deliberately separate. A save writes the review exactly as it stands,
 resolved comments included, so an Agent's answer can never disappear before the reviewer has looked
 at it. `Clear resolved` is what rotates the cycle: `resolved` comments move into `archive` under the

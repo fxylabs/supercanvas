@@ -214,8 +214,9 @@ supercanvas discuss <comment-id> --message "the decision you need" [--target t]
 `resolve` records `status: resolved` with `resolution.summary`, `resolution.changes` and the Agent as
 `resolvedBy`; `discuss` moves the Comment to `status: discussion` with the question as an Agent thread
 message. Both increment `feedbackRevision` once per run and re-render, which is how a canvas the
-reviewer still has open learns to offer a reload. Hand-editing the same fields stays valid, but then
-the revision bump and the render are yours to remember.
+reviewer still has open learns to offer a reload. `resolve` refuses a Comment that is already
+`resolved` instead of overwriting the resolution recorded on it. Hand-editing the same fields stays
+valid, but then the revision bump and the render are yours to remember.
 
 Never clean up review history by bumping the Canvas version or deleting all comments, and never drop
 or rewrite entries in `archive` — that array is the record of comments already closed and reported. A

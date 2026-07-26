@@ -110,6 +110,15 @@ try {
   const state = await (await fetch(new URL("/api/feedback", served.url))).json();
   assert.equal(state.feedbackRevision, afterResolve.feedbackRevision, "the open page must be able to see the agent's revision");
 
+  // a page still holding the pre-resolve revision must not write the agent's answer away
+  const stale = await post(served.url, bridge.token, envelope(start, [comment]));
+  assert.equal(stale.status, 409, "a save built on an older feedback revision must be refused");
+  const afterStale = await feedbackData();
+  assert.equal(afterStale.comments[0].status, "resolved", "a refused stale save must leave the comment resolved");
+  assert.equal(afterStale.comments[0].resolution.summary, afterResolve.comments[0].resolution.summary,
+    "a refused stale save must leave the agent's resolution intact");
+  assert.equal(afterStale.feedbackRevision, afterResolve.feedbackRevision, "a refused stale save must not touch the revision");
+
   const protocol = await feedbackProtocol();
   const rotation = protocol.rotate(afterResolve.archive, afterResolve.review, afterResolve.comments);
   const cleared = await post(served.url, bridge.token, envelope(afterResolve, rotation.active, rotation.archive));
@@ -125,6 +134,10 @@ try {
 
   process.stdout.write("review round trip: passed\n");
 } finally {
-  if (server) await new Promise((resolve) => server.close(resolve));
+  // undici keeps its sockets alive, so close() alone would not call back until they time out
+  if (server) {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
   await rm(workspace, { recursive: true, force: true });
 }

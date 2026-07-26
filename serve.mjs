@@ -81,6 +81,17 @@ async function handleSave(packageRoot, request, response, token) {
   } catch (error) {
     return sendJson(response, 422, { error: error.message });
   }
+  /* The page posts the revision it was loaded from. If the agent has resolved something since, that
+     draft describes a file that no longer exists and writing it would erase the resolution while the
+     file's own counter stayed put. A payload carrying no revision at all cannot say which file it was
+     built from, so it is refused the same way. */
+  const base = Number(data.feedbackRevision) || 1;
+  if (validated.feedbackRevision !== base) {
+    return sendJson(response, 409, {
+      error: `The agent changed this canvas since the page loaded (feedback revision ${base}). Reload before saving again.`,
+      feedbackRevision: base
+    });
+  }
   // the file keeps its own schemaVersion and revision counter; the browser only owns the review state
   const next = {
     ...data,

@@ -90,9 +90,15 @@ export async function waitForReview(packageRoot, options = {}) {
 export function resolveComments(data, commentIds, resolution) {
   const wanted = new Set(commentIds);
   const found = new Set();
+  const closed = new Set();
   const comments = activeComments(data).map((comment) => {
     if (!wanted.has(comment.id)) return comment;
     found.add(comment.id);
+    // re-closing a comment would overwrite the resolution already recorded on it, so it is refused
+    if (comment.status === "resolved") {
+      closed.add(comment.id);
+      return comment;
+    }
     return {
       ...comment,
       status: "resolved",
@@ -107,6 +113,7 @@ export function resolveComments(data, commentIds, resolution) {
   });
   const missing = commentIds.filter((id) => !found.has(id));
   if (missing.length) throw new Error(`No such open comment: ${missing.join(", ")}`);
+  if (closed.size) throw new Error(`Already resolved: ${[...closed].join(", ")}`);
   return { ...data, feedbackRevision: (Number(data.feedbackRevision) || 1) + 1, comments };
 }
 

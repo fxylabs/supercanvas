@@ -3,6 +3,7 @@
 import { access, cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
@@ -432,7 +433,7 @@ async function cmdDiscuss(args)
     const packageRoot = await ensureSchemaSupported(await resolveTarget(values["--target"]?.[0]));
     const { file, data } = await readFeedback(packageRoot);
     const next = discussComment(data, rest[0], {
-        id: `message-${Date.now().toString(36)}`,
+        id: `message-${randomUUID()}`,
         text: message,
         label: values["--label"]?.[0] || "Agent",
         createdAt: new Date().toISOString()
