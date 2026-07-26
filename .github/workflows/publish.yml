@@ -1,0 +1,23 @@
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      # OIDC trusted publishing needs npm >= 11.5.1
+      - run: npm install -g npm@latest
+      - run: node bin/supercanvas.mjs update --all examples
+      - run: npm publish
