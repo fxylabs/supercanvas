@@ -194,8 +194,12 @@ finished Comment it binds the new target hash and records `status: resolved`,
 `resolution.summary`, `resolution.changes` and an Agent thread message. A Comment that needs a
 product decision stays at `status: discussion` with a specific question left as an Agent thread
 message. When saving the file, increment `feedbackRevision` once and re-run the render. Never clean
-up review history by bumping the Canvas version or deleting all comments. The Canvas default view
-shows only `open` and `discussion` pins and hides `resolved` from the screen and the header count.
+up review history by bumping the Canvas version or deleting all comments, and never drop or rewrite
+entries in `archive` — that array is the record of comments already closed and reported. The Canvas
+default view shows only `open` and `discussion` pins and hides `resolved` from the screen and the
+header count; a comment listed in `archive` is filtered out of the review list entirely. The user's
+next `Save feedback` is what moves a `resolved` comment from `comments` into `archive`, so the Agent
+leaves resolved entries in `comments` with their resolution intact and lets the save rotate them.
 If the user explicitly asks to empty the current review, run `Clear all comments`, save, and reflect
 that feedback file's empty comments array in the canonical source.
 

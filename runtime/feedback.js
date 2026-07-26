@@ -14,15 +14,22 @@
     return comment.targetRevision === current ? "current" : "outdated";
   }
 
+  function archivedCommentIds(archive) {
+    var ids = [];
+    (archive || []).forEach(function (entry) { (entry.comments || []).forEach(function (comment) { ids.push(comment.id); }); });
+    return ids;
+  }
+
   function reconcile(canonical, draft, targetHashes, meta) {
     var envelope = draft || {};
     var review = meta && meta.review;
     if (review && envelope.reviewId && envelope.reviewId !== review.id) envelope = {};
     if (envelope.submittedAt && Number(envelope.baseFeedbackRevision || 0) < Number(meta && meta.feedbackRevision || 0)) envelope = {};
     var deleted = new Set(envelope.deletedIds || []);
+    var archived = new Set((meta && meta.archivedIds) || []);
     var merged = new Map();
-    (canonical || []).forEach(function (comment) { if (!deleted.has(comment.id)) merged.set(comment.id, comment); });
-    (envelope.comments || []).forEach(function (comment) { if (!deleted.has(comment.id)) merged.set(comment.id, comment); });
+    (canonical || []).forEach(function (comment) { if (!deleted.has(comment.id) && !archived.has(comment.id)) merged.set(comment.id, comment); });
+    (envelope.comments || []).forEach(function (comment) { if (!deleted.has(comment.id) && !archived.has(comment.id)) merged.set(comment.id, comment); });
     return Array.from(merged.values()).map(function (comment) {
       return Object.assign({}, comment, { reviewState: reviewState(comment, targetHashes) });
     });
@@ -98,6 +105,7 @@
   }
 
   global.CanvasFeedback = {
+    archivedCommentIds: archivedCommentIds,
     portable: portable,
     reconcile: reconcile,
     reviewState: reviewState,

@@ -392,6 +392,18 @@ The Agent reads the file, does the work, then records a new `targetRevision`, `r
 the status to `discussion` and leaves the question in the thread. The Agent's result file increments
 `feedbackRevision`.
 
+`Save feedback` writes the file in one of two ways. In a browser with the File System Access API
+(Chrome, Edge), `Save to feedback.json` writes straight into the package's `feedback.json`; the file
+is picked once and the handle is remembered per Canvas, so later saves need no dialog and the Agent
+reads the package file with no manual copy step. `Download feedback.json` and `Copy JSON` remain for
+every other browser, and there you still replace the package file yourself and run update again.
+
+Each save rotates the review: only `open` and `discussion` comments stay in `comments`, and every
+`resolved` comment moves into `archive` under its review cycle. The saved markdown lists the active
+comments first and the just-archived ones in a separate closing section, so a resolved item is
+reported exactly once and never returns on the next save. The runtime also filters archived comment
+IDs out of the review list, so a stale browser draft cannot resurrect one.
+
 The browser draft key combines the Canvas ID and `review.id`. A stored draft keeps
 `baseFeedbackRevision` and `submittedAt`, and an already submitted past draft is not merged once a
 higher canonical feedbackRevision is rendered. That way localStorage can never overwrite the
@@ -399,8 +411,7 @@ Agent's resolved results back into open/outdated.
 
 The feedback menu offers only `Save feedback` and `Clear all comments`. Clearing all hides every
 current comment ID in both the canonical file and the local draft, so the next save produces a
-feedback file with an empty comments array. On static `file://` you have to replace the package's
-`feedback.json` with the saved file and update the Canvas again.
+feedback file with an empty comments array.
 
 ## Agent session prompt
 

@@ -77,6 +77,9 @@ if (snapshot.library) {
 const feedbackSource = await readFile(path.join(kitRoot, "runtime/feedback.js"), "utf8");
 const boardSource = await readFile(path.join(kitRoot, "runtime/board.js"), "utf8");
 assert.ok(boardSource.includes('comment.status !== "resolved"'), "resolved comments must be hidden by default");
+assert.ok(boardSource.includes("archivedCommentIds(feedbackMeta.archive)"), "archived comments must be filtered out of the review list");
+assert.ok(boardSource.includes("window.showSaveFilePicker"), "Save feedback must offer a direct write into feedback.json");
+assert.ok(boardSource.includes("markSubmitted(active, archivedIds)"), "saving must archive resolved comments instead of re-emitting them");
 assert.ok(boardSource.includes('comment.target.type !== "canvas"'), "unanchored legacy Canvas comments must not render pins");
 assert.ok(boardSource.includes('if (!isReviewTarget(comment)) return;'), "only unresolved anchored comments may render pins");
 assert.equal(/openNewPopover\(\{\s*type:\s*["']canvas["']/.test(boardSource), false, "empty Canvas clicks must not create unanchored comments");
@@ -123,6 +126,13 @@ const canonicalWins = protocol.reconcile(canonicalAfterAgent, staleSubmitted, sn
 assert.equal(canonicalWins[0].text, "canonical Agent result", "new canonical feedback must supersede a submitted stale browser draft");
 const anotherCycle = protocol.reconcile(canonicalAfterAgent, { reviewId: "review-another", comments: [{ ...imported[0], text: "wrong cycle" }] }, snapshot.revision.targetHashes, snapshot.feedback);
 assert.equal(anotherCycle[0].text, "canonical Agent result", "a draft from another review cycle must not leak into the active cycle");
+const archivedResolved = { review: snapshot.feedback.review, comments: [imported[0]] };
+assert.equal(JSON.stringify(protocol.archivedCommentIds([archivedResolved])), JSON.stringify([imported[0].id]), "archivedCommentIds must collect every archived comment ID");
+const afterArchive = protocol.reconcile(canonicalAfterAgent, { comments: [{ ...imported[0], text: "stale resolved draft" }] }, snapshot.revision.targetHashes, {
+  ...snapshot.feedback,
+  archivedIds: protocol.archivedCommentIds([archivedResolved])
+});
+assert.equal(afterArchive.length, 0, "an archived resolved comment must never reappear in the review list");
 const discussionComment = snapshot.feedback.comments.find((comment) => comment.status === "discussion");
 if (discussionComment) {
   const discussionEnvelope = protocol.portable({ canvasId: snapshot.canvas.id, canvasVersion: snapshot.canvas.version, baseRevision: snapshot.revision.id, feedbackRevision: snapshot.feedback.feedbackRevision, review: snapshot.feedback.review, archive: snapshot.feedback.archive }, [discussionComment]);
