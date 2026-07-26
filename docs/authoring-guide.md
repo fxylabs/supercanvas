@@ -189,21 +189,46 @@ dependencies, accessibility and use/avoid criteria — not a specific React or C
 implements that definition in the target project's technology and conventions, but never invents
 variants or states that are not defined.
 
-An Agent handed a feedback file resolves context for each Comment target and then works. For a
-finished Comment it binds the new target hash and records `status: resolved`,
-`resolution.summary`, `resolution.changes` and an Agent thread message. A Comment that needs a
-product decision stays at `status: discussion` with a specific question left as an Agent thread
-message. When saving the file, increment `feedbackRevision` once and re-run the render. Never clean
-up review history by bumping the Canvas version or deleting all comments, and never drop or rewrite
-entries in `archive` — that array is the record of comments already closed and reported. The Canvas
-default view shows only `open` and `discussion` pins and hides `resolved` from the screen and the
-header count; a comment listed in `archive` is filtered out of the review list entirely. The user's
-next `Save feedback` is what moves a `resolved` comment from `comments` into `archive`, so the Agent
-leaves resolved entries in `comments` with their resolution intact and lets the save rotate them.
-A comment ID appears either in `comments` or in `archive`, never in both.
+An Agent picks up review work by reading `supercanvas feedback [target]`, which prints every comment
+with its target, its thread and the `supercanvas context` command for it. Add `--json` for the raw
+envelope and `--status open` to narrow the list. Resolve context for each Comment target, then work.
 
-Each `archive` entry records the review cycle a comment was closed in, and the save copies that cycle
-as it stood at the time — an ongoing cycle is archived with `status: active`. Marking it
+Nothing announces a save, so an Agent that wants to keep working through a review session waits for
+one instead of asking the user to say "check again":
+
+```sh
+supercanvas feedback --wait [--timeout 600] [--target t]
+```
+
+It returns immediately when comments are already open, and otherwise blocks until the reviewer saves
+new or reopened work, prints only what changed and exits. Run it as a background job: the process
+ending is the signal that there is something to read.
+
+Close finished Comments through the CLI rather than by editing the file:
+
+```sh
+supercanvas resolve <comment-id ...> --summary "what changed" [--change "detail"] [--target t]
+supercanvas discuss <comment-id> --message "the decision you need" [--target t]
+```
+
+`resolve` records `status: resolved` with `resolution.summary`, `resolution.changes` and the Agent as
+`resolvedBy`; `discuss` moves the Comment to `status: discussion` with the question as an Agent thread
+message. Both increment `feedbackRevision` once per run and re-render, which is how a canvas the
+reviewer still has open learns to offer a reload. `resolve` refuses a Comment that is already
+`resolved` instead of overwriting the resolution recorded on it. Hand-editing the same fields stays
+valid, but then the revision bump and the render are yours to remember.
+
+Never clean up review history by bumping the Canvas version or deleting all comments, and never drop
+or rewrite entries in `archive` — that array is the record of comments already closed and reported. A
+resolved Comment keeps a check-marked pin on the canvas so the reviewer can read the change summary;
+a comment listed in `archive` is filtered out of the review list entirely. `Clear resolved` in the
+reviewer's Feedback menu is what moves a `resolved` comment from `comments` into `archive`, so the
+Agent leaves resolved entries in `comments` with their resolution intact and lets the reviewer rotate
+them once they have checked the change. A comment ID appears either in `comments` or in `archive`,
+never in both.
+
+Each `archive` entry records the review cycle a comment was closed in, and the clear copies that
+cycle as it stood at the time — an ongoing cycle is archived with `status: active`. Marking it
 `completed` is the Agent's job at exactly one moment: when it opens a new review cycle, it sets every
 archive bucket whose `review.id` differs from the new active cycle to `completed`. Never edit an
 archived comment itself.
