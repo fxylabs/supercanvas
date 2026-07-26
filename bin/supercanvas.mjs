@@ -354,7 +354,9 @@ if (!command || command === "help" || command === "--help")
 {
     process.stdout.write(usage);
 }
-else if (!commands[command])
+// hasOwn, not a plain lookup — `commands` inherits toString/constructor, and those would
+// otherwise dispatch as valid commands and exit 0 on what is really a typo
+else if (!Object.hasOwn(commands, command))
 {
     process.stderr.write(`unknown command: ${command}\n\n${usage}`);
     process.exitCode = 1;
