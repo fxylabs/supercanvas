@@ -16,7 +16,7 @@ jobs:
       # This workflow intentionally inspects metadata only. Never check out or
       # execute code from the pull request in a pull_request_target workflow.
       - name: Require an accepted issue, assignment, and matching branch
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.pull_request.body ?? '';
