@@ -889,13 +889,19 @@
     } catch (error) { return emptyDraft(); }
   }
 
-  function loadComments() {
-    if (localStorage.getItem(completedKey) === "1" || reviewCycle.status === "completed") return [];
+  // every comment the canonical file and the local draft agree on, without the review-completed
+  // gate — the review list needs that gate, a status report must not hide comments behind it
+  function reconciledComments() {
     return feedbackProtocol.reconcile(canonicalFeedback, draftEnvelope(), revision.targetHashes || {}, {
       review: reviewCycle,
       feedbackRevision: feedbackRevision,
       archivedIds: feedbackProtocol.archivedCommentIds(feedbackMeta.archive)
     });
+  }
+
+  function loadComments() {
+    if (localStorage.getItem(completedKey) === "1" || reviewCycle.status === "completed") return [];
+    return reconciledComments();
   }
 
   function persistDraft(state) {
@@ -1427,13 +1433,16 @@
 
   qs("#canvas-info-btn").onclick = function () {
     closeFileMenu();
-    var list = loadComments();
+    var list = reconciledComments();
     var counts = { open: 0, discussion: 0, resolved: 0 };
-    list.forEach(function (comment) { counts[comment.status] += 1; });
+    list.forEach(function (comment) {
+      var bucket = comment.status === "resolved" ? "resolved" : comment.status === "discussion" ? "discussion" : "open";
+      counts[bucket] += 1;
+    });
     var archivedCount = feedbackProtocol.archivedCommentIds(feedbackMeta.archive).length;
     var rows = [
       ["Engine", data.engine ? data.engine.name + " " + data.engine.version : "unknown — rendered before engine metadata existed"],
-      ["Rendered", new Date(document.lastModified).toLocaleString()],
+      ["File modified", new Date(document.lastModified).toLocaleString()],
       ["Revision", revision.id],
       ["Schema version", String(data.schemaVersion)],
       ["Canvas", canvasMeta.id + " · " + canvasMeta.version],

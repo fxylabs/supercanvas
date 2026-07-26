@@ -27,7 +27,7 @@ const snapshot = JSON.parse(match[1]);
 assert.equal(snapshot.schemaVersion, 2, "generated snapshot must use schema v2");
 const enginePackage = JSON.parse(await readFile(path.join(kitRoot, "package.json"), "utf8"));
 assert.equal(snapshot.engine?.name, enginePackage.name, "snapshot must record the engine that rendered it");
-assert.equal(snapshot.engine?.version, enginePackage.version, "snapshot engine version must match the rendering engine");
+assert.equal(snapshot.engine?.version, enginePackage.version, "snapshot engine version must match the rendering engine — this dist was rendered by an older engine, re-render it with render.mjs or update.mjs before verifying");
 assert.equal(snapshot.diagnostics.length, 0, "canvas has renderer diagnostics");
 assert.ok(snapshot.frames.length > 0, "canvas needs at least one Frame");
 
