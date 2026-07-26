@@ -1,6 +1,6 @@
 {
     "name": "@superself/supercanvas",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Agent-editable design canvas engine with a global CLI",
     "type": "module",
     "bin": {
