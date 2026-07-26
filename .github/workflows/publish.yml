@@ -17,7 +17,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
-      # OIDC trusted publishing needs npm >= 11.5.1
-      - run: npm install -g npm@latest
+      # OIDC trusted publishing needs npm >= 11.5.1; npm 12 rejects the pinned node
+      - run: npm install -g npm@11
       - run: node bin/supercanvas.mjs update --all examples
       - run: npm publish
