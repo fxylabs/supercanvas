@@ -1425,6 +1425,35 @@
     });
   };
 
+  qs("#canvas-info-btn").onclick = function () {
+    closeFileMenu();
+    var list = loadComments();
+    var counts = { open: 0, discussion: 0, resolved: 0 };
+    list.forEach(function (comment) { counts[comment.status] += 1; });
+    var archivedCount = feedbackProtocol.archivedCommentIds(feedbackMeta.archive).length;
+    var rows = [
+      ["Engine", data.engine ? data.engine.name + " " + data.engine.version : "unknown — rendered before engine metadata existed"],
+      ["Rendered", new Date(document.lastModified).toLocaleString()],
+      ["Revision", revision.id],
+      ["Schema version", String(data.schemaVersion)],
+      ["Canvas", canvasMeta.id + " · " + canvasMeta.version],
+      ["Review cycle", reviewCycle.id + " · " + reviewCycle.status],
+      ["Feedback revision", String(feedbackRevision)],
+      ["Frames", String(frames.length)],
+      ["Comments", counts.open + " open · " + counts.discussion + " discussion · " + counts.resolved + " resolved · " + archivedCount + " archived"]
+    ];
+    openModal("Canvas info", function (body) {
+      var info = document.createElement("dl");
+      info.className = "info-list";
+      rows.forEach(function (row) {
+        var term = document.createElement("dt"); term.textContent = row[0];
+        var value = document.createElement("dd"); value.textContent = row[1];
+        info.appendChild(term); info.appendChild(value);
+      });
+      body.appendChild(info);
+    });
+  };
+
   document.addEventListener("keydown", function (event) {
     if (event.key === "Tab" && qs("#modal").classList.contains("open")) {
       var focusable = qsa('button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])', qs("#modal"));

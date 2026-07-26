@@ -666,6 +666,9 @@ body.notes-on .planning-note-target.planning-note-active { outline: 4px solid #f
 }
 .modal-box .pop-row button.primary { color: #fff; background: #6e4fa3; border-color: #6e4fa3; font-weight: 700; }
 .modal-hint { margin-top: 8px; color: #6e6480; font-size: 12px; }
+.info-list { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+.info-list dt { color: #6e6480; }
+.info-list dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-all; }
 
 #toast {
   position: fixed;
