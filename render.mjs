@@ -68,6 +68,7 @@ async function main() {
   const output = path.resolve(args.out);
   const root = path.dirname(input);
   const kitRoot = path.dirname(fileURLToPath(import.meta.url));
+  const enginePackage = JSON.parse(await readFile(path.join(kitRoot, "package.json"), "utf8"));
   const rawManifest = JSON.parse(await readFile(input, "utf8"));
   const data = migrateManifest(rawManifest);
   const diagnostics = [];
@@ -341,6 +342,8 @@ async function main() {
   const revision = { id: revisionId(packageHash), sourceHash: packageHash, targetHashes };
   const snapshot = {
     schemaVersion: CANVAS_SCHEMA_VERSION,
+    // display metadata only — never an input to packageHash, or every engine bump would flip every targetRevision
+    engine: { name: enginePackage.name, version: enginePackage.version },
     canvas: data.canvas,
     revision,
     sources: sourceRefs,

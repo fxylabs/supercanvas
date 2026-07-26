@@ -416,9 +416,11 @@ The browser draft key combines the Canvas ID and `review.id`. A stored draft kee
 higher canonical feedbackRevision is rendered. That way localStorage can never overwrite the
 Agent's resolved results back into open/outdated.
 
-The feedback menu offers only `Save feedback` and `Clear all comments`. Clearing all hides every
-current comment ID in both the canonical file and the local draft, so the next save produces a
-feedback file with an empty comments array.
+The feedback menu offers only `Save feedback`, `Clear all comments` and `Canvas info`. Clearing all
+hides every current comment ID in both the canonical file and the local draft, so the next save
+produces a feedback file with an empty comments array. `Canvas info` opens a read-only modal that
+reports which engine version rendered the file, the revision and schema version, the Canvas and
+review cycle, the feedbackRevision, and the Frame and Comment counts.
 
 ## Agent session prompt
 

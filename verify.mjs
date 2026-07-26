@@ -19,11 +19,15 @@ assert.equal(html.includes("{{"), false, "generated output contains an unresolve
 const feedbackMenu = html.match(/<div id="file-menu-panel"[\s\S]*?<\/div>/)?.[0] || "";
 assert.ok(feedbackMenu.includes('id="export-btn"'), "feedback menu must expose Save");
 assert.ok(feedbackMenu.includes('id="clear-all-comments"'), "feedback menu must expose Clear all comments");
-assert.equal((feedbackMenu.match(/role="menuitem"/g) || []).length, 2, "feedback menu must contain only Save and Clear all comments");
+assert.ok(feedbackMenu.includes('id="canvas-info-btn"'), "feedback menu must expose Canvas info");
+assert.equal((feedbackMenu.match(/role="menuitem"/g) || []).length, 3, "feedback menu must contain only Save, Clear all comments and Canvas info");
 const match = html.match(/<script type="application\/json" id="canvas-data">([\s\S]*?)<\/script>/);
 assert.ok(match, "canvas snapshot is missing");
 const snapshot = JSON.parse(match[1]);
 assert.equal(snapshot.schemaVersion, 2, "generated snapshot must use schema v2");
+const enginePackage = JSON.parse(await readFile(path.join(kitRoot, "package.json"), "utf8"));
+assert.equal(snapshot.engine?.name, enginePackage.name, "snapshot must record the engine that rendered it");
+assert.equal(snapshot.engine?.version, enginePackage.version, "snapshot engine version must match the rendering engine — this dist was rendered by an older engine, re-render it with render.mjs or update.mjs before verifying");
 assert.equal(snapshot.diagnostics.length, 0, "canvas has renderer diagnostics");
 assert.ok(snapshot.frames.length > 0, "canvas needs at least one Frame");
 
@@ -80,6 +84,7 @@ assert.ok(boardSource.includes('comment.status !== "resolved"'), "resolved comme
 assert.ok(boardSource.includes("archivedCommentIds(feedbackMeta.archive)"), "archived comments must be filtered out of the review list");
 assert.ok(boardSource.includes("window.showSaveFilePicker"), "Save feedback must offer a direct write into feedback.json");
 assert.ok(boardSource.includes("markSubmitted(active, archivedIds)"), "saving must archive resolved comments instead of re-emitting them");
+assert.ok(boardSource.includes('qs("#canvas-info-btn").onclick'), "Canvas info menu item must open the info modal");
 assert.ok(boardSource.includes("feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, list.concat(carriedArchive(draftEnvelope())))"), "saving must rotate through the protocol and carry comments archived by an earlier save");
 assert.ok(boardSource.includes('comment.target.type !== "canvas"'), "unanchored legacy Canvas comments must not render pins");
 assert.ok(boardSource.includes('if (!isReviewTarget(comment)) return;'), "only unresolved anchored comments may render pins");
