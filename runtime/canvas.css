@@ -664,6 +664,7 @@ body.notes-on .planning-note-target.planning-note-active { outline: 4px solid #f
   cursor: pointer;
   font-size: 12px;
 }
+.modal-box .pop-row button.primary { color: #fff; background: #6e4fa3; border-color: #6e4fa3; font-weight: 700; }
 .modal-hint { margin-top: 8px; color: #6e6480; font-size: 12px; }
 
 #toast {

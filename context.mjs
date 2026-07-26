@@ -84,7 +84,9 @@ async function main() {
   const connection = (relations.connections || []).find((item) => item.id === targetId);
   const action = actions.find((item) => item.id === targetId);
   const note = notes.find((item) => item.id === targetId);
-  const comment = (feedback.comments || []).find((item) => item.id === targetId);
+  const archivedComments = (feedback.archive || []).flatMap((entry) => entry.comments || []);
+  const comment = (feedback.comments || []).find((item) => item.id === targetId)
+    || archivedComments.find((item) => item.id === targetId);
   const designTarget = libraryTarget(library, targetId);
   const rule = (rules?.rules || []).find((item) => item.id === targetId);
   const target = frame || group || connection || action || note || (manifest.canvas.id === targetId ? manifest.canvas : null);
@@ -92,7 +94,7 @@ async function main() {
   if (comment) {
     const required = [sources.feedback];
     process.stdout.write(JSON.stringify({
-      query: { type: "comment", id: comment.id },
+      query: { type: "comment", id: comment.id, archived: archivedComments.includes(comment) },
       comment,
       commonRules,
       nextTarget: comment.target,
@@ -102,7 +104,8 @@ async function main() {
         resolved: "After verified work, set status=resolved, update targetRevision, add resolution.summary/changes and an Agent thread message.",
         discussion: "If a decision is required, set status=discussion and add an Agent question to thread; do not invent the answer.",
         feedbackRevision: "Increment feedbackRevision once when writing the Agent-updated feedback file.",
-        rulePromotion: "If feedback is reusable across Frames or Canvases, add ruleProposal.status=proposed and ask for approval. If ruleProposal.status=approved, promote it into the shared rules file as an active rule and retain feedback provenance."
+        rulePromotion: "If feedback is reusable across Frames or Canvases, add ruleProposal.status=proposed and ask for approval. If ruleProposal.status=approved, promote it into the shared rules file as an active rule and retain feedback provenance.",
+        archived: "A comment in archive is closed history. Read it for background, but never move it back into comments or edit it."
       },
       instruction: `Run context again with --target ${comment.target.id}; do not read dist/canvas.html.`
     }, null, 2) + "\n");

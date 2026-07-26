@@ -867,31 +867,47 @@
     if (target) { event.preventDefault(); toast(target.dataset.toast); }
   });
 
+  function emptyDraft() {
+    return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [], archivedIds: [] };
+  }
+
   function draftEnvelope() {
     try {
       var stored = localStorage.getItem(storeKey);
-      if (!stored) return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [] };
+      if (!stored) return emptyDraft();
       var parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return { reviewId: null, baseRevision: null, baseFeedbackRevision: 0, comments: parsed, deletedIds: [] };
-      return { reviewId: parsed.reviewId || null, baseRevision: parsed.baseRevision || null, baseFeedbackRevision: Number(parsed.baseFeedbackRevision) || 0, submittedAt: parsed.submittedAt || null, comments: parsed.comments || [], deletedIds: parsed.deletedIds || [] };
-    } catch (error) { return { reviewId: reviewCycle.id, baseRevision: revision.id, baseFeedbackRevision: feedbackRevision, comments: [], deletedIds: [] }; }
+      if (Array.isArray(parsed)) return { reviewId: null, baseRevision: null, baseFeedbackRevision: 0, comments: parsed, deletedIds: [], archivedIds: [] };
+      return {
+        reviewId: parsed.reviewId || null,
+        baseRevision: parsed.baseRevision || null,
+        baseFeedbackRevision: Number(parsed.baseFeedbackRevision) || 0,
+        submittedAt: parsed.submittedAt || null,
+        comments: parsed.comments || [],
+        deletedIds: parsed.deletedIds || [],
+        archivedIds: parsed.archivedIds || []
+      };
+    } catch (error) { return emptyDraft(); }
   }
 
   function loadComments() {
     if (localStorage.getItem(completedKey) === "1" || reviewCycle.status === "completed") return [];
-    var draft = draftEnvelope();
-    return feedbackProtocol.reconcile(canonicalFeedback, draft, revision.targetHashes || {}, { review: reviewCycle, feedbackRevision: feedbackRevision });
+    return feedbackProtocol.reconcile(canonicalFeedback, draftEnvelope(), revision.targetHashes || {}, {
+      review: reviewCycle,
+      feedbackRevision: feedbackRevision,
+      archivedIds: feedbackProtocol.archivedCommentIds(feedbackMeta.archive)
+    });
   }
 
-  function persistDraft(list, deletedIds, submittedAt, baseFeedbackRevision) {
+  function persistDraft(state) {
     localStorage.setItem(storeKey, JSON.stringify({
       reviewId: reviewCycle.id,
       baseRevision: revision.id,
-      baseFeedbackRevision: baseFeedbackRevision == null ? feedbackRevision : baseFeedbackRevision,
+      baseFeedbackRevision: feedbackRevision,
       updatedAt: new Date().toISOString(),
-      submittedAt: submittedAt || null,
-      comments: list.map(feedbackProtocol.stripDerived),
-      deletedIds: deletedIds || []
+      submittedAt: state.submittedAt || null,
+      comments: (state.comments || []).map(feedbackProtocol.stripDerived),
+      deletedIds: state.deletedIds || [],
+      archivedIds: state.archivedIds || []
     }));
   }
 
@@ -903,12 +919,20 @@
       localStorage.removeItem(completedKey);
       toast("New comment reopened the current review.");
     }
-    persistDraft(list, Array.from(deleted), null, feedbackRevision);
+    persistDraft({ comments: list, deletedIds: Array.from(deleted), archivedIds: previous.archivedIds });
     renderPins();
   }
 
-  function markSubmitted(list) {
-    persistDraft(list, draftEnvelope().deletedIds || [], new Date().toISOString(), feedbackRevision);
+  function markSubmitted(list, archivedIds) {
+    var previous = draftEnvelope();
+    var archived = new Set(previous.archivedIds || []);
+    (archivedIds || []).forEach(function (id) { archived.add(id); });
+    persistDraft({
+      comments: list,
+      deletedIds: previous.deletedIds,
+      archivedIds: Array.from(archived),
+      submittedAt: new Date().toISOString()
+    });
   }
 
   function setCommentMarkerContent(element, label) {
@@ -1249,33 +1273,137 @@
     var link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); setTimeout(function () { URL.revokeObjectURL(link.href); }, 0);
   }
 
+  var feedbackFileHandle = null;
+  var handleDbKey = "feedback-file:" + canvasMeta.id;
+
+  function openHandleDb() {
+    return new Promise(function (resolve) {
+      try {
+        var request = indexedDB.open("supercanvas-canvas", 1);
+        request.onupgradeneeded = function () { request.result.createObjectStore("handles"); };
+        request.onerror = function () { resolve(null); };
+        request.onsuccess = function () { resolve(request.result); };
+      } catch (error) { resolve(null); }
+    });
+  }
+
+  function loadStoredFileHandle() {
+    return openHandleDb().then(function (db) {
+      if (!db) return null;
+      return new Promise(function (resolve) {
+        var request = db.transaction("handles").objectStore("handles").get(handleDbKey);
+        request.onerror = function () { db.close(); resolve(null); };
+        request.onsuccess = function () { db.close(); resolve(request.result || null); };
+      });
+    });
+  }
+
+  function storeFileHandle(handle) {
+    return openHandleDb().then(function (db) {
+      if (!db) return;
+      var store = db.transaction("handles", "readwrite").objectStore("handles");
+      if (handle) store.put(handle, handleDbKey);
+      else store.delete(handleDbKey);
+      db.close();
+    }).catch(function () { /* the handle is not persistable on this platform */ });
+  }
+
+  async function saveFeedbackToFile(portable) {
+    var handle = feedbackFileHandle || await loadStoredFileHandle();
+    if (handle) {
+      try {
+        var permission = await handle.queryPermission({ mode: "readwrite" });
+        if (permission !== "granted") permission = await handle.requestPermission({ mode: "readwrite" });
+        if (permission !== "granted") handle = null;
+      } catch (error) { handle = null; }
+    }
+    if (!handle) {
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: "feedback.json",
+          types: [{ description: "Canvas feedback", accept: { "application/json": [".json"] } }]
+        });
+      } catch (error) {
+        if (error && error.name === "AbortError") return false;
+        throw error;
+      }
+      storeFileHandle(handle);
+    }
+    try {
+      var writable = await handle.createWritable();
+      await writable.write(JSON.stringify(portable, null, 2) + "\n");
+      await writable.close();
+    } catch (error) {
+      feedbackFileHandle = null;
+      storeFileHandle(null);
+      throw error;
+    }
+    feedbackFileHandle = handle;
+    return true;
+  }
+
+  function commentLines(comment, label) {
+    var target = comment.target;
+    var title = target.type === "frame" && frameById[target.id] ? frameById[target.id].title : target.type + " #" + target.id;
+    var anchor = target.anchor?.kind === "region"
+      ? " @ region " + target.anchor.x + "%," + target.anchor.y + "% " + target.anchor.width + "%×" + target.anchor.height + "%"
+      : target.type === "frame" && (target.anchor?.kind === "point" || target.x != null)
+        ? " @ point " + (target.anchor?.x ?? target.x) + "%," + (target.anchor?.y ?? target.y) + "%"
+        : "";
+    var statusLabel = comment.status === "resolved" ? "resolved" : comment.status === "discussion" ? "needs discussion" : "open";
+    var lines = [label + ". [" + title + anchor + "] (" + statusLabel + ")" + (comment.reviewState === "outdated" ? " (target changed)" : "") + " " + comment.text];
+    (comment.thread || []).forEach(function (message) { lines.push("   - " + message.author.label + ": " + message.text); });
+    if (comment.resolution) lines.push("   - change summary: " + comment.resolution.summary);
+    if (comment.ruleProposal) lines.push("   - common rule candidate (" + comment.ruleProposal.status + "): " + comment.ruleProposal.statement);
+    return lines;
+  }
+
+  /* Comments archived by an earlier save in this page session are still in the rendered canonical
+     snapshot. Carry them back into the rotation so a second save before the next render cannot
+     write a file that has dropped them from both comments and archive. */
+  function carriedArchive(draft) {
+    var archivedHere = new Set(draft.archivedIds || []);
+    var inFile = new Set(feedbackProtocol.archivedCommentIds(feedbackMeta.archive));
+    return canonicalFeedback.filter(function (comment) { return archivedHere.has(comment.id) && !inFile.has(comment.id); });
+  }
+
   qs("#export-btn").onclick = function () {
     closeFileMenu();
     var list = loadComments();
+    var resolvedNow = list.filter(function (comment) { return comment.status === "resolved"; });
+    var rotation = feedbackProtocol.rotate(feedbackMeta.archive, reviewCycle, list.concat(carriedArchive(draftEnvelope())));
+    var active = rotation.active;
     var lines = ["## Canvas feedback — " + canvasMeta.title + " (" + canvasMeta.version + ")", "Review: " + reviewCycle.id + " · feedback revision " + feedbackRevision];
-    if (!list.length) lines.push("(no comments)");
-    list.forEach(function (comment, index) {
-      var target = comment.target;
-      var title = target.type === "frame" && frameById[target.id] ? frameById[target.id].title : target.type + " #" + target.id;
-      var anchor = target.anchor?.kind === "region"
-        ? " @ region " + target.anchor.x + "%," + target.anchor.y + "% " + target.anchor.width + "%×" + target.anchor.height + "%"
-        : target.type === "frame" && (target.anchor?.kind === "point" || target.x != null)
-          ? " @ point " + (target.anchor?.x ?? target.x) + "%," + (target.anchor?.y ?? target.y) + "%"
-          : "";
-      var statusLabel = comment.status === "resolved" ? "resolved" : comment.status === "discussion" ? "needs discussion" : "open";
-      lines.push((index + 1) + ". [" + title + anchor + "] (" + statusLabel + ")" + (comment.reviewState === "outdated" ? " (target changed)" : "") + " " + comment.text);
-      (comment.thread || []).forEach(function (message) { lines.push("   - " + message.author.label + ": " + message.text); });
-      if (comment.resolution) lines.push("   - change summary: " + comment.resolution.summary);
-      if (comment.ruleProposal) lines.push("   - common rule candidate (" + comment.ruleProposal.status + "): " + comment.ruleProposal.statement);
-    });
-    var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: feedbackMeta.archive || [] }, list);
+    if (!active.length) lines.push("(no open comments)");
+    active.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, String(index + 1))); });
+    if (resolvedNow.length) {
+      lines.push("", "### Resolved — archived with this save, not shown again");
+      resolvedNow.forEach(function (comment, index) { lines.push.apply(lines, commentLines(comment, "R" + (index + 1))); });
+    }
+    var archivedIds = rotation.archivedIds;
+    var portable = feedbackProtocol.portable({ canvasId: canvasMeta.id, canvasVersion: canvasMeta.version, baseRevision: revision.id, feedbackRevision: feedbackRevision, review: reviewCycle, archive: rotation.archive }, active);
     openModal("Save feedback", function (body) {
-      body.innerHTML = '<textarea readonly aria-label="Markdown feedback"></textarea><div class="pop-row"><button id="download-feedback" type="button">Download feedback.json</button><button id="copy-feedback-json" type="button">Copy JSON</button></div><div class="modal-hint">After saving, the agent reads this file and updates status, thread, resolution and feedbackRevision.</div>';
+      var canSaveDirect = typeof window.showSaveFilePicker === "function";
+      body.innerHTML = '<textarea readonly aria-label="Markdown feedback"></textarea><div class="pop-row">'
+        + (canSaveDirect ? '<button id="save-feedback-file" class="primary" type="button">Save to feedback.json</button>' : "")
+        + '<button id="download-feedback" type="button">Download feedback.json</button><button id="copy-feedback-json" type="button">Copy JSON</button></div>'
+        + '<div class="modal-hint">' + (canSaveDirect
+          ? "Save writes straight into the canvas package's feedback.json (picked once, remembered). The agent reads it and updates status, thread, resolution and feedbackRevision."
+          : "After saving, the agent reads this file and updates status, thread, resolution and feedbackRevision.") + "</div>";
       qs("textarea", body).value = lines.join("\n");
+      if (canSaveDirect) {
+        qs("#save-feedback-file").onclick = function () {
+          saveFeedbackToFile(portable).then(function (saved) {
+            if (!saved) { toast("Save cancelled · nothing was written."); return; }
+            markSubmitted(active, archivedIds); renderPins(); closeModal();
+            toast("feedback.json saved · the agent can read it now.");
+          }).catch(function () { toast("Direct save failed · use Download feedback.json instead."); });
+        };
+      }
       qs("#download-feedback").onclick = function () {
-        downloadJson(portable, "feedback.json"); markSubmitted(list); toast("Feedback saved · waiting for the agent.");
+        downloadJson(portable, "feedback.json"); markSubmitted(active, archivedIds); renderPins(); toast("Feedback saved · waiting for the agent.");
       };
-      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(portable, null, 2), "Feedback JSON copied"); markSubmitted(list); };
+      qs("#copy-feedback-json").onclick = function () { copyText(JSON.stringify(portable, null, 2), "Feedback JSON copied"); markSubmitted(active, archivedIds); renderPins(); };
     });
     copyText(lines.join("\n"), "Markdown feedback copied");
   };
@@ -1291,7 +1419,7 @@
         var deleted = new Set(previous.deletedIds || []);
         list.forEach(function (comment) { deleted.add(comment.id); });
         localStorage.removeItem(completedKey);
-        persistDraft([], Array.from(deleted), null, feedbackRevision);
+        persistDraft({ comments: [], deletedIds: Array.from(deleted), archivedIds: previous.archivedIds });
         closeModal(); renderPins(); toast("All comments cleared. Use Save feedback to apply it.");
       };
     });
